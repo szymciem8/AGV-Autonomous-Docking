@@ -1,0 +1,39 @@
+@startuml general_docking_algorithm
+' !theme spacelab
+scale 1
+
+start
+
+group Ustawienie pozycji platformy
+:Szybki skan otocznia;
+    if (abs(FR-FL) <= epsilon) then (nie)
+        repeat
+        'backward:test;
+
+        if (FR-FL >= epsilon) then (tak)
+            :obrót w prawo;
+        else (nie)
+            :obrót w lewo;
+        endif
+
+        repeat while (abs(FR-FL) >= epsilon) is (nie) not (tak)
+
+        :Ustawienie się w pozycji prostopadłej do ścianki przeciwległej ;
+        'break
+    else (nie)
+    endif 
+->;
+
+end group
+
+note
+LF = lewy przedni czujnik odległości
+LR = lewy tylny czujnik odległości
+
+FR = przedni prawy czujnik odległości
+FL = przedni lewy czujnik odległości
+end note
+
+end
+
+@enduml

@@ -1,0 +1,28 @@
+@startuml general_docking_algorithm
+' !theme spacelab
+scale 1
+
+start
+group Podjazd do stacji dokowania
+: Zakładamy sukces!;
+end group
+
+group Ustawienie pozycji platformy
+:Szybki skan otocznia;
+:Ustawienie się w pozycji prostopadłej do ścianki przeciwległej ;
+
+end group
+
+group Dokowanie
+repeat: Czy po lewej stronie znajduje się cała ścianka?;
+backward:Ruch do przodu;
+repeat while () is (nie) not (tak)
+repeat:Sprawdzenie odległości do lewej ścianki (obrót w prawo i lewo);
+backward:Ustawienie odłegłości do lewej ścianki;
+repeat while () is (Nipoprawna odległość) not (Poprawna odległość)
+:Ostateczne dokowanie - podjazd; 
+end group
+
+stop
+
+@enduml

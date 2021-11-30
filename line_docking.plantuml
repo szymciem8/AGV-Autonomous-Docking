@@ -1,0 +1,29 @@
+@startuml general_docking_algorithm
+' !theme spacelab
+scale 1
+
+start
+
+group Dokowanie do linii 
+    :Podjazd do przodu - ślepa strefa; 
+    
+    if (LF and LR < distance) then (tak)
+
+    else (nie)
+
+    endif
+
+
+end group
+
+note
+LF = lewy przedni czujnik odległości
+LR = lewy tylny czujnik odległości
+
+FR = przedni prawy czujnik odległości
+FL = przedni lewy czujnik odległości
+end note
+
+end
+
+@enduml
