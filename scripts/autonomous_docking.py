@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 from subprocess import call, Popen
 import time
 
+# CONSTANTS
+OFFSET = 250
+
 xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.112'
 
 right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
@@ -36,23 +39,16 @@ pid_left.sample_time = 0.01
 pid_left.output_limits = (-1000, 1000)
 
 # ALIGNMENT PID
-# Nastawa początkowa P=0.4, I=0, D=0
-
-T_kr = 1/0.625
-Kr = 1.75
-
 # pid_align = PID(1.5, 0.2, 0.008) # było 0.5, 0.1, 0.0
 pid_align = PID(0.5, 0.003, 0.007)
 pid_align.sample_time = 0.01
 pid_align.setpoint=0
 pid_align.output_limits = (-15, 15)
 
+# Read values from topic
 right_wheel_speed = 0
 left_wheel_speed = 0
 
-speed_values = {}
-speed_values['right'] = []
-speed_values['left'] = []
 
 rospy.init_node('robot_controller', anonymous=True)
 
@@ -101,7 +97,7 @@ def callback_joint_state(msg):
     global right_wheel_speed, left_wheel_speed
     right_wheel_speed = msg.velocity[1]
     left_wheel_speed = msg.velocity[0]
-    print(right_wheel_speed, left_wheel_speed)
+    # print(right_wheel_speed, left_wheel_speed)
 
 def listener():
     rospy.Subscriber('/joint_states', JointState, callback_joint_state)
@@ -116,17 +112,20 @@ def move_right_wheel(speed):
     pid_right.setpoint=speed
     output = pid_right(right_wheel_speed)
 
-    if output > 0: output += 280
-    elif output < 0: output -= 280
+    if output > 0: output += OFFSET
+    elif output < 0: output -= OFFSET
 
     # print(output)
     right_wheel_publisher.publish(output)
 
 def move_left_wheel(speed):
     global pid_left, left_wheel_speed 
-
     pid_left.setpoint=speed
     output = pid_left(left_wheel_speed)
+
+    if output > 0: output += OFFSET
+    elif output < 0: output -= OFFSET
+    
     left_wheel_publisher.publish(output)
 
 def full_stop():
@@ -163,7 +162,7 @@ def align_robot():
     # if output_align > 0: output_align += 10
     # elif output_align <0: output_align -= 10
 
-    move_right_wheel(output_align)
+    # move_right_wheel(output_align)
 
     # print('error pololu', error_pololu)
     # print('error tfmini', error_tfmini)
@@ -171,7 +170,10 @@ def align_robot():
     # print('pid output', output_align) 
 
 
-if __name__=='__main__':
+    return output_align
+
+
+if __name__ == '__main__':
 
     #Use right_velocity and left_velocity instead of diff_drive
     #Disconnect built in PID controller
@@ -183,11 +185,10 @@ if __name__=='__main__':
 
     try:
         while True:
-            align_robot()
-            move_right_wheel(10)
-            move_left_wheel(10)
+            # move_right_wheel(5+align_robot())
+            # move_left_wheel(5)
             # time.sleep(0.01)
-            #full_stop()
+            full_stop()
             #right_wheel_publisher.publish(0)
             #precise_tfmini_measurement()
 
