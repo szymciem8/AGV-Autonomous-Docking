@@ -41,7 +41,8 @@ pid_left.output_limits = (-1000, 1000)
 T_kr = 1/0.625
 Kr = 1.75
 
-pid_align = PID(1.5, 0.2, 0.008) # było 0.5, 0.1, 0.0
+# pid_align = PID(1.5, 0.2, 0.008) # było 0.5, 0.1, 0.0
+pid_align = PID(0.5, 0.003, 0.007)
 pid_align.sample_time = 0.01
 pid_align.setpoint=0
 pid_align.output_limits = (-15, 15)
@@ -107,7 +108,6 @@ def listener():
     for i in range(4):
         rospy.Subscriber('/mega_driver/pololu/scan_'+str(i), Range, callback_pololu, callback_args=i)
         rospy.Subscriber('/mega_driver/tfmini/scan_'+str(i), Range, callback_tfmini, callback_args=i)
-
     rospy.spin()
 
 def move_right_wheel(speed):
@@ -116,8 +116,8 @@ def move_right_wheel(speed):
     pid_right.setpoint=speed
     output = pid_right(right_wheel_speed)
 
-    if output > 0: output += 300
-    elif output < 0: output -= 300
+    if output > 0: output += 280
+    elif output < 0: output -= 280
 
     # print(output)
     right_wheel_publisher.publish(output)
@@ -142,8 +142,8 @@ def align_robot():
     error_pololu = pololu_measurements[3] - pololu_measurements[2] 
     error_tfmini = tfmini_measurements[3] - tfmini_measurements[2]
 
-    precise_tfmini = precise_tfmini_measurement()
-    error_tfmini = precise_tfmini[3] - precise_tfmini[2]
+    # precise_tfmini = precise_tfmini_measurement()
+    # error_tfmini = precise_tfmini[3] - precise_tfmini[2]
     
     # print('tf2', tfmini_measurements[2], end='\t')
     # print('tf3', tfmini_measurements[3], end='\t')
@@ -153,9 +153,9 @@ def align_robot():
 
     pid_align.setpoint=0
 
-    if -11 <= error_tfmini <= 11: error_tfmini = 0
+    if -10 <= error_tfmini <= 10: error_tfmini = 0
 
-    print('tf_error', error_tfmini)
+    # print('tf_error', error_tfmini)
 
     # print(error_tfmini, end='\t')
     output_align = pid_align(error_tfmini)
@@ -167,6 +167,7 @@ def align_robot():
 
     # print('error pololu', error_pololu)
     # print('error tfmini', error_tfmini)
+    print(f'{output_align = }')
     # print('pid output', output_align) 
 
 
@@ -183,10 +184,11 @@ if __name__=='__main__':
     try:
         while True:
             align_robot()
-            #move_right_wheel(10)
-            #move_right_wheel(20)
+            move_right_wheel(10)
+            move_left_wheel(10)
             # time.sleep(0.01)
             #full_stop()
+            #right_wheel_publisher.publish(0)
             #precise_tfmini_measurement()
 
     # time.sleep(5)
