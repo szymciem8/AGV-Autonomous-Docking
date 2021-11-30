@@ -13,6 +13,7 @@ import time
 
 # CONSTANTS
 OFFSET = 250
+MIN_ERROR = 10
 
 xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.112'
 
@@ -49,7 +50,6 @@ pid_align.output_limits = (-15, 15)
 right_wheel_speed = 0
 left_wheel_speed = 0
 
-
 rospy.init_node('robot_controller', anonymous=True)
 
 tfmini_measurements = [0, 0, 0, 0]
@@ -70,8 +70,7 @@ def precise_tfmini_measurement():
             precise_tfmini[i] = int(precise_tfmini[i])
 
     # print(precise_tfmini)
-    return precise_tfmini
-    
+    return precise_tfmini    
 
 def controller_manager_setup():
     command = f'{xavier_setup}'
@@ -115,7 +114,6 @@ def move_right_wheel(speed):
     if output > 0: output += OFFSET
     elif output < 0: output -= OFFSET
 
-    # print(output)
     right_wheel_publisher.publish(output)
 
 def move_left_wheel(speed):
@@ -132,43 +130,35 @@ def full_stop():
     right_wheel_publisher.publish(0)
     left_wheel_publisher.publish(0)
 
-def align_robot():
+def align_robot(sensor='tfmini', precision=False):
     global pid_align
-    
-    # LF pololu_scan_0
-    # LR pololu_scan_0
 
-    error_pololu = pololu_measurements[3] - pololu_measurements[2] 
-    error_tfmini = tfmini_measurements[3] - tfmini_measurements[2]
+    if sensor=='tfmini':
+        if precision:
+            precise_tfmini = precise_tfmini_measurement()
+            error = precise_tfmini[3] - precise_tfmini[2]
+        else:
+            error = tfmini_measurements[3] - tfmini_measurements[2]
+            
+        if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
-    # precise_tfmini = precise_tfmini_measurement()
-    # error_tfmini = precise_tfmini[3] - precise_tfmini[2]
-    
+    elif sensor=='pololu':
+        error = pololu_measurements[3] - pololu_measurements[2] 
+        if -MIN_ERROR <= error <= MIN_ERROR: error = 0
+
+   
     # print('tf2', tfmini_measurements[2], end='\t')
     # print('tf3', tfmini_measurements[3], end='\t')
-    # print('tf_error', error_tfmini)
-    # if error_pololu <= -7: error_pololu=0
-    # elif error_pololu >= 7: error_pololu=0
 
     pid_align.setpoint=0
-
-    if -10 <= error_tfmini <= 10: error_tfmini = 0
-
-    # print('tf_error', error_tfmini)
-
-    # print(error_tfmini, end='\t')
-    output_align = pid_align(error_tfmini)
+    output_align = pid_align(error)
 
     # if output_align > 0: output_align += 10
     # elif output_align <0: output_align -= 10
 
     # move_right_wheel(output_align)
 
-    # print('error pololu', error_pololu)
-    # print('error tfmini', error_tfmini)
-    print(f'{output_align = }')
-    # print('pid output', output_align) 
-
+    print(f'{output_align = }, {error=}')
 
     return output_align
 
@@ -191,8 +181,6 @@ if __name__ == '__main__':
             full_stop()
             #right_wheel_publisher.publish(0)
             #precise_tfmini_measurement()
-
-    # time.sleep(5)
     
     except KeyboardInterrupt:
         full_stop()
