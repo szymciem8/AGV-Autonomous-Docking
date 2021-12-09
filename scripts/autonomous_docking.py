@@ -88,8 +88,6 @@ def controller_manager_setup():
     p1=Popen(['/bin/bash', '-i', '-c', command])
 
     p1.wait(timeout=60)
-
-    while not global_stop_flag: pass
     p1.terminate()
 
 def callback_pololu(msg, i):
@@ -207,11 +205,11 @@ def signal_handler(signal, frame):
     
 if __name__ == '__main__':
 
+    signal.signal(signal.SIGINT, signal_handler)
+
     #Use right_velocity and left_velocity instead of diff_drive
     #Disconnect built in PID controller
-    # controller_manager_setup()
-
-    signal.signal(signal.SIGINT, signal_handler)
+    controller_manager_setup()
 
     #Start listener thread
     listener_thread = threading.Thread(target=listener)
