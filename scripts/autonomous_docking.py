@@ -10,6 +10,7 @@ import threading
 import matplotlib.pyplot as plt
 from subprocess import call, Popen
 import time
+import math
 
 import signal
 
@@ -154,6 +155,12 @@ def full_stop():
     right_wheel_publisher.publish(0)
     left_wheel_publisher.publish(0)
 
+def get_angle(error):
+    D = 195
+
+    return math.asin(error/math.sqrt(D**2+error**2))
+
+
 def align_robot(sensor='tfmini', precision=False):
     '''
     Put robot in parallel position to the wall. 
@@ -183,7 +190,7 @@ def align_robot(sensor='tfmini', precision=False):
 
     # move_right_wheel(output_align)
 
-    print(f'{output_align = }, {error=}')
+    # print(f'{output_align = }, {error=}')
 
     return output_align, error
 
@@ -224,9 +231,11 @@ if __name__ == '__main__':
         except ZeroDivisionError:
             forward_movement = 5
 
+        print(get_angle(alignment_error))
+
         # if alignment_error > 0:
         #     move_right_wheel(0)
-        #     move_left_wheel(abs(alignment_movement) * alignment_error)
+        #     move_left_wheel(abs(alignment_movement))
         # elif alignment_error < 0:
         #     move_right_wheel(abs(alignment_movement))
         #     move_left_wheel(0)
@@ -234,17 +243,15 @@ if __name__ == '__main__':
         #     move_right_wheel(0)
         #     move_left_wheel(0)
         
-
-    #     # move_left_wheel(forward_movement - alignment_movement)
-    #     # move_right_wheel(forward_movement)
-    #     # align_robot()
-    #     # full_stop()
-    #     # right_wheel_publisher.publish(0)
-    #     # precise_tfmini_measurement()
+        # move_left_wheel(forward_movement - alignment_movement)
+        # move_right_wheel(forward_movement)
+        # align_robot()
+        # full_stop()
+        # right_wheel_publisher.publish(0)
+        # precise_tfmini_measurement()
 
         if global_stop_flag:
             break
-
 
 
     print('debug message')
