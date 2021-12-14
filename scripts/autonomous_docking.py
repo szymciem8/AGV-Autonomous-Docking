@@ -15,7 +15,7 @@ import signal
 
 # CONSTANTS
 OFFSET = 250
-MIN_ERROR = 10
+MIN_ERROR = 15
 
 global_stop_flag = False
 
@@ -175,8 +175,8 @@ def align_robot(sensor='tfmini', precision=False):
         if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
     
-    # print('tf2', tfmini_measurements[2], end='\t')
-    # print('tf3', tfmini_measurements[3], end='\t')
+    # print('tf2', pololu_measurements[2], end='\t')
+    # print('tf3', pololu_measurements[3])
 
     pid_align.setpoint=0
     output_align = pid_align(error)
@@ -209,28 +209,43 @@ if __name__ == '__main__':
 
     #Use right_velocity and left_velocity instead of diff_drive
     #Disconnect built in PID controller
-    controller_manager_setup()
+    # controller_manager_setup()
 
     #Start listener thread
     listener_thread = threading.Thread(target=listener)
     listener_thread.setDaemon(True)
     listener_thread.start()
 
+    full_stop()
     while True:
-        alignment_movement, alignment_error = align_robot()
+        alignment_movement, alignment_error = align_robot('pololu')
         try:
             forward_movement = 5 / abs(alignment_error)
         except ZeroDivisionError:
             forward_movement = 5
-        # move_left_wheel(forward_movement - alignment_movement)
-        # move_right_wheel(forward_movement)
-        # align_robot()
-        full_stop()
-        # right_wheel_publisher.publish(0)
-        # precise_tfmini_measurement()
+
+        # if alignment_error > 0:
+        #     move_right_wheel(0)
+        #     move_left_wheel(abs(alignment_movement) * alignment_error)
+        # elif alignment_error < 0:
+        #     move_right_wheel(abs(alignment_movement))
+        #     move_left_wheel(0)
+        # else:
+        #     move_right_wheel(0)
+        #     move_left_wheel(0)
+        
+
+    #     # move_left_wheel(forward_movement - alignment_movement)
+    #     # move_right_wheel(forward_movement)
+    #     # align_robot()
+    #     # full_stop()
+    #     # right_wheel_publisher.publish(0)
+    #     # precise_tfmini_measurement()
 
         if global_stop_flag:
             break
+
+
 
     print('debug message')
     full_stop()
