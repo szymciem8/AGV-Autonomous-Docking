@@ -15,8 +15,42 @@ import math
 import signal
 
 # CONSTANTS
-OFFSET = 250
+OFFSET = 455
 MIN_ERROR = 15
+MIN_SPEED = 2.5
+
+
+class MedianFilter:
+    def __init__(self, ww=5):
+        self.window_width = ww
+        self.measurements_1 = [0 for _ in range(ww)]
+        self.measurements_2 = [0 for _ in range(ww)]
+
+    def update_measurements(self, m_1, m_2):
+        self.measurements_1.pop(0)
+        self.measurements_1.append(m_1)
+        self.measurements_2.pop(0)
+        self.measurements_2.append(m_2)
+
+    def output(self):
+        try:
+            if self.window_width % 2 == 1:
+                res_1 = sorted(self.measurements_1)[self.window_width // 2]
+                res_2 = sorted(self.measurements_2)[self.window_width // 2]
+            else:
+                res_1 = sorted(self.measurements_1)[self.window_width // 2]
+                res_1 += sorted(self.measurements_1)[(self.window_width // 2) - 1]
+                res_1 /= 2
+                res_2 = sorted(self.measurements_2)[self.window_width // 2]
+                res_2 += sorted(self.measurements_2)[(self.window_width // 2) - 1]
+                res_2 /= 2
+        except IndexError:
+            res_1, res_2 = None, None
+
+        return (res_1, res_2)
+
+pololu_mf = MedianFilter(5)
+tfmini_mf = MedianFilter(5)
 
 global_stop_flag = False
 
@@ -29,25 +63,31 @@ rospy.init_node('robot_controller', anonymous=True)
 
 #Setpoint [rad/s]
 #W miarę OK
-Kp = 14
-Ki = 7
-Kd = 0.3
+Kp = 10
+Ki = 10
+Kd = 0.5
 
 # RIGHT WHEEL PID
 pid_right = PID(Kp, Ki, Kd, setpoint=0)
-pid_right.sample_time = 0.01
+pid_right.sample_time = 0.001
 pid_right.output_limits = (-1000, 1000)
+
+
+# Kp = 10
+# Ki = 15
+# Kd = 0.5
 
 # LEFT WHEEL PID
 pid_left = PID(Kp, Ki, Kd, setpoint=0)
-pid_left.sample_time = 0.01
+pid_left.sample_time = 0.001
 pid_left.output_limits = (-1000, 1000)
 
 # ALIGNMENT PID
-pid_align = PID(1.5, 0.2, 0.008)
-pid_align.sample_time = 0.01
+# pid_align = PID(1.5, 0.2, 0.008)
+pid_align = PID(20, 0, 0)
+pid_align.sample_time = 0.001
 pid_align.setpoint = 0
-pid_align.output_limits = (-15, 15)
+pid_align.output_limits = (-20, 20)
 
 # Read values from topic
 right_wheel_speed = 0
@@ -61,23 +101,26 @@ pololu_measurements = [0, 0, 0, 0]
 frame_size = 10
 average_tfmini = [[0 for i in range(frame_size)] for _ in range(4)]
 
-def precise_tfmini_measurement():
+
+def precise_measurement():
     '''
     Process data from tfmini sensors using a moving average filter.
     '''
     
-    precise_tfmini = [0, 0, 0, 0]
+    l = [0, 0, 0, 0, 0]
 
-    for i in range(4):
-        average_tfmini[i].pop(0)
-        average_tfmini[i].append(tfmini_measurements[i])
+    for i in range(len(l)):
+        l[i].pop(0)
+        l[i].append(pololu_measurements[i])
+
+
 
         for j in range(frame_size):
-            precise_tfmini[i] += average_tfmini[i][j]/frame_size
-            precise_tfmini[i] = int(precise_tfmini[i])
+            l[i] += average_tfmini[i][j]/frame_size
+            l[i] = int(l[i])
 
     # print(precise_tfmini)
-    return precise_tfmini    
+    return l    
 
 def controller_manager_setup():
     command = f'{xavier_setup}'
@@ -122,15 +165,23 @@ def move_right_wheel(speed):
     '''
     Move right wheel using PID controller.
     '''
+    RIGHT_OFFSET = 450
 
     global pid_right, right_wheel_speed
+
+    if speed < MIN_SPEED and speed > 0: speed=MIN_SPEED
+    elif speed > -MIN_SPEED and speed < 0: speed=-MIN_SPEED 
 
     pid_right.setpoint=speed
     output = pid_right(right_wheel_speed)
 
-    if output > 0: output += OFFSET
-    elif output < 0: output -= OFFSET
+    if speed > 0 and output < 0: 
+        output=0
+    elif speed < 0 and output > 0:
+        output=0
 
+    if output > 0: output += RIGHT_OFFSET
+    elif output < 0: output -= RIGHT_OFFSET
     right_wheel_publisher.publish(output)
 
 def move_left_wheel(speed):
@@ -138,13 +189,25 @@ def move_left_wheel(speed):
     Move left wheel using PID controller.
     '''
 
+    LEFT_OFFSET = 450
+
     global pid_left, left_wheel_speed 
+
+    if speed < MIN_SPEED and speed > 0: speed=MIN_SPEED
+    elif speed > -MIN_SPEED and speed < 0: speed=-MIN_SPEED 
+
     pid_left.setpoint=speed
     output = pid_left(left_wheel_speed)
 
-    if output > 0: output += OFFSET
-    elif output < 0: output -= OFFSET
-    
+    if speed > 0 and output < 0: 
+        output=0
+    elif speed < 0 and output > 0:
+        output=0
+
+    if output > 0: output += LEFT_OFFSET
+    elif output < 0: output -= LEFT_OFFSET
+
+    print(f'{output=}')
     left_wheel_publisher.publish(output)
 
 def full_stop():
@@ -160,6 +223,14 @@ def get_angle(error):
 
     return math.asin(error/math.sqrt(D**2+error**2))
 
+def dead_space(value, cutter):
+    '''
+    Exclude dead space from given value and its cutter.
+    '''
+
+    if value > cutter: value=cutter
+    elif value < cutter: value=cutter
+    return value
 
 def align_robot(sensor='tfmini', precision=False):
     '''
@@ -167,30 +238,42 @@ def align_robot(sensor='tfmini', precision=False):
     '''
 
     global pid_align
+    global pololu_mf
+    global tfmini_mf
 
     if sensor=='tfmini':
         if precision:
-            precise_tfmini = precise_tfmini_measurement()
-            error = precise_tfmini[3] - precise_tfmini[2]
+            tfmini_mf.update_measurements(tfmini_measurements[3], tfmini_measurements[2])
+            precise_tfmini = tfmini_mf.output()
+            error = precise_tfmini[1] - precise_tfmini[0]
         else:
-            error = tfmini_measurements[3] - tfmini_measurements[2]
+            error = tfmini_measurements[3] - tfmini_measurements[2] # Rear - front
             
         if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
     elif sensor=='pololu':
-        error = pololu_measurements[3] - pololu_measurements[2] 
-        if -MIN_ERROR <= error <= MIN_ERROR: error = 0
+        if precision:
+            pololu_mf.update_measurements(pololu_measurements[3], pololu_measurements[2])
+            precise_pololu = pololu_mf.output()
+            error = precise_pololu[1] - precise_pololu[0]
+        else:
+            error = pololu_measurements[3] - pololu_measurements[2] # Rear - front
+
+        # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
     
     # print('tf2', pololu_measurements[2], end='\t')
-    # print('tf3', pololu_measurements[3])
+    # print('tf3', pololu_measurements[3], end='\t')
+    # print('difference', pololu_measurements[3] - pololu_measurements[2])
 
-    pid_align.setpoint=0
-    output_align = pid_align(error)
+    angle = get_angle(error)
+    pid_align.setpoint = 0
+    output_align = pid_align(angle)
 
-    # move_right_wheel(output_align)
+    # if output_align < 0: output_align -=5
+    # elif output_align >0: output_align += 5
 
-    # print(f'{output_align = }, {error=}')
+    print(f'{output_align=}, {error=}, {angle=}')
 
     return output_align, error
 
@@ -225,13 +308,13 @@ if __name__ == '__main__':
 
     full_stop()
     while True:
-        alignment_movement, alignment_error = align_robot('pololu')
+        alignment_movement, alignment_error = align_robot('pololu', True)
         try:
             forward_movement = 5 / abs(alignment_error)
         except ZeroDivisionError:
-            forward_movement = 5
+             forward_movement = 5
 
-        print(get_angle(alignment_error))
+        # print(get_angle(alignment_error))
 
         # if alignment_error > 0:
         #     move_right_wheel(0)
@@ -242,13 +325,17 @@ if __name__ == '__main__':
         # else:
         #     move_right_wheel(0)
         #     move_left_wheel(0)
+ 
         
-        # move_left_wheel(forward_movement - alignment_movement)
-        # move_right_wheel(forward_movement)
-        # align_robot()
+        # move_right_wheel(3.5)
+        # move_left_wheel(3.5)
+        
+    #     # move_left_wheel(forward_movement - alignment_movement)
+    #     # move_right_wheel(forward_movement)
+    #     # align_robot()
         # full_stop()
-        # right_wheel_publisher.publish(0)
-        # precise_tfmini_measurement()
+    #     # right_wheel_publisher.publish(0)
+    #     # precise_tfmini_measurement()
 
         if global_stop_flag:
             break
