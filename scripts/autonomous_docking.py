@@ -43,31 +43,28 @@ rospy.init_node('robot_controller', anonymous=True)
 # Ki = 15
 # Kd = 0.5
 
-Kp = 6
-Ki = 5
-Kd = 0.1
-
 # RIGHT WHEEL PID
-pid_right = PID(Kp, Ki, Kd, setpoint=0)
+pid_right = PID(6, 5, 0.1, setpoint=0)
 pid_right.sample_time = 0.001
 pid_right.output_limits = (-1000, 1000)
 
-
-Kp = 5
-Ki = 5
-Kd = 0.1
-
 # LEFT WHEEL PID
-pid_left = PID(Kp, Ki, Kd, setpoint=0)
+pid_left = PID(5, 5, 0.1, setpoint=0)
 pid_left.sample_time = 0.001
 pid_left.output_limits = (-1000, 1000)
 
 # ALIGNMENT PID
-pid_align = PID(3, 0.5, 0.008)
+pid_align = PID(2.5, 0.4, 0.008)
 # pid_align = PID(20, 0, 0)
 pid_align.sample_time = 0.001
-pid_align.setpoint = 0
+pid_align.setpoint = -0.6
 pid_align.output_limits = (-20, 20)
+
+# DISTANCE PID
+pid_distance = PID(1, 0, 0)
+pid_distance.sample_time = 0.001
+pid_distance.setpoint = 500
+pid_distance.output_limits = (-0.5, 0.5)
 
 # Read values from topic
 right_wheel_speed = 0
@@ -182,19 +179,16 @@ def get_angle(error):
 
 def get_distance_from_wall(l1, l2, angle):
     # In mm
-    X0 = 150
-    Y0 = 90
+    X0 = 150   #X0 = 150
+    Y0 = 87    #Y0 = 85
 
     # d/l1 = cos(alfa) - > d = li
 
+    angle = get_angle(l2-l1)
+
     d = l1 * math.cos(angle)
 
-    if l1 < l2:
-        return d + math.cos(angle) * X0 - math.sin(angle) * Y0
-    elif l2 < l1:
-        return d + math.cos(angle) * X0 + math.sin(angle) * Y0
-    else:
-        return l1
+    return d + math.cos(angle) * X0 - math.sin(angle) * Y0
 
 def dead_space(value, cutter):
     '''
@@ -225,6 +219,8 @@ def align_robot(sensor='tfmini', precision=False):
 
         if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
+        # distance = get_distance_from_wall(pololu_measurements[2], tfmini_measurements[3], error)
+
     elif sensor=='pololu':
         if precision:
             pololu_mf.update_measurements(pololu_measurements)
@@ -233,6 +229,7 @@ def align_robot(sensor='tfmini', precision=False):
         else:
             error = pololu_measurements[3] - pololu_measurements[2] # Rear - front
 
+
         # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
     # print('tf2', pololu_measurements[2], end='\t')
@@ -240,19 +237,29 @@ def align_robot(sensor='tfmini', precision=False):
     # print('difference', pololu_measurements[3] - pololu_measurements[2])
 
     angle = get_angle(error)
-    pid_align.setpoint = 0
+    distance = get_distance_from_wall(pololu_measurements[2], pololu_measurements[3], angle)
+
+    if distance < 550:
+        pid_align.setpoint = -.2
+    elif distance > 500:
+        pid_align.setpoint = .2
+    else:
+        pid_align.setpoint = 0
+
+    # pid_align.setpoint = 0
+
     output_align = pid_align(angle)
 
     # if output_align < 0: output_align -=5
     # elif output_align >0: output_align += 5
 
-    # print(f'{output_align=}, {error=}, {angle=}')
+    print(f'{pid_align.setpoint=}, {output_align=}, {error=}, {angle=}, {distance=}')
 
     return output_align, error, angle
 
 def find_docking_wall():
     '''
-    Based on the distance of the front lidar, specify if the robot
+    Based on the distance from the front lidar, specify if the robot
     is close enough to the wall to start the alignment process.
     '''
 
@@ -289,19 +296,27 @@ if __name__ == '__main__':
              forward_movement = 5
 
         # print(get_angle(alignment_error))
-
         # print(get_distance_from_wall(pololu_measurements[2], pololu_measurements[3], alignment_angle))
 
-        base_speed = 3
-        if alignment_error > 0:
+        # move_left_wheel(abs(alignment_movement))
+        # move_right_wheel(alignment_movement)
+
+        base_speed = 2.5
+        if alignment_angle > pid_align.setpoint:
             move_right_wheel(base_speed)
             move_left_wheel(base_speed + abs(alignment_movement))
-        elif alignment_error < 0:
+        elif alignment_angle < pid_align.setpoint:
             move_right_wheel(base_speed + abs(alignment_movement))
             move_left_wheel(base_speed)
         else:
             move_right_wheel(base_speed)
             move_left_wheel(base_speed)
+
+
+        # move_right_wheel(alignment_movement)
+        # move_left_wheel(-alignment_movement)
+
+
 
         # move_right_wheel(3.5)
         # move_left_wheel(3.5)
@@ -320,6 +335,7 @@ if __name__ == '__main__':
 
         if global_stop_flag:
             break
+    # elif output_align >0: output_align += 5
 
 
     print('debug message')
