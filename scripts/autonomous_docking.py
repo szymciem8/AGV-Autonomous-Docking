@@ -61,10 +61,10 @@ pid_align.setpoint = -0.6
 pid_align.output_limits = (-20, 20)
 
 # DISTANCE PID
-pid_distance = PID(1, 0, 0)
+pid_distance = PID(0.01, 0, 0.001)
 pid_distance.sample_time = 0.001
-pid_distance.setpoint = 500
-pid_distance.output_limits = (-0.5, 0.5)
+# pid_distance.setpoint = 500
+pid_distance.output_limits = (-0.4, 0.4)
 
 # Read values from topic
 right_wheel_speed = 0
@@ -205,6 +205,7 @@ def align_robot(sensor='tfmini', precision=False):
     '''
 
     global pid_align
+    global pid_distance
 
     global pololu_mf
     global tfmini_mf
@@ -229,7 +230,6 @@ def align_robot(sensor='tfmini', precision=False):
         else:
             error = pololu_measurements[3] - pololu_measurements[2] # Rear - front
 
-
         # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
     # print('tf2', pololu_measurements[2], end='\t')
@@ -239,14 +239,12 @@ def align_robot(sensor='tfmini', precision=False):
     angle = get_angle(error)
     distance = get_distance_from_wall(pololu_measurements[2], pololu_measurements[3], angle)
 
-    if distance < 550:
-        pid_align.setpoint = -.2
-    elif distance > 500:
-        pid_align.setpoint = .2
-    else:
-        pid_align.setpoint = 0
+    pid_distance.setpoint = 500
 
-    # pid_align.setpoint = 0
+    if 480 < distance < 520:
+        pid_align.setpoint = 0
+    else:
+        pid_align.setpoint = -pid_distance(distance)
 
     output_align = pid_align(angle)
 
@@ -301,7 +299,7 @@ if __name__ == '__main__':
         # move_left_wheel(abs(alignment_movement))
         # move_right_wheel(alignment_movement)
 
-        base_speed = 2.5
+        base_speed = 2.8
         if alignment_angle > pid_align.setpoint:
             move_right_wheel(base_speed)
             move_left_wheel(base_speed + abs(alignment_movement))
@@ -316,27 +314,8 @@ if __name__ == '__main__':
         # move_right_wheel(alignment_movement)
         # move_left_wheel(-alignment_movement)
 
-
-
-        # move_right_wheel(3.5)
-        # move_left_wheel(3.5)
-
-        # time.sleep(3)
-
-        # move_right_wheel(-3.5)        d = pololu_measurements[2]
-        # move_left_wheel(-3.5)
-
-    #     # move_left_wheel(forward_movement - alignment_movement)
-    #     # move_right_wheel(forward_movement)
-    #     # align_robot()
-        # full_stop()
-    #     # right_wheel_publisher.publish(0)
-    #     # precise_tfmini_measurement()
-
         if global_stop_flag:
             break
-    # elif output_align >0: output_align += 5
-
 
     print('debug message')
     full_stop()
