@@ -61,10 +61,10 @@ pid_align.setpoint = -0.6
 pid_align.output_limits = (-20, 20)
 
 # DISTANCE PID
-pid_distance = PID(0.01, 0, 0.001)
+pid_distance = PID(0.1, 0.1, 0)
 pid_distance.sample_time = 0.001
 # pid_distance.setpoint = 500
-pid_distance.output_limits = (-0.4, 0.4)
+pid_distance.output_limits = (-0.3, 0.3)
 
 # Read values from topic
 right_wheel_speed = 0
