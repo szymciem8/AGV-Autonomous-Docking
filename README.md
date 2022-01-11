@@ -18,15 +18,23 @@ Docking means positioning the robot with proper alignemnt and distance to wall o
  
 ## Solution
 
-
+Solution was divided into three parts.
 
 ### Wheel Control
 
+Each wheel has to be controlled individually. 
+
 ### Alignemnt
+
+#### Angle calculation
+
+Angle of the robot against the wall. 
 
 ### Distance Control
 
+#### Distance calculation
 
+Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
 
 ## Techonologies
 
