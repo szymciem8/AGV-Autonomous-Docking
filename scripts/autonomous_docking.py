@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright 2022 Szymon Ciemała, Paweł Wojaczek
+
 from logging import error
 from numpy.core.numeric import full
 from geometry_msgs import msg
@@ -13,312 +15,327 @@ import matplotlib.pyplot as plt
 from subprocess import call, Popen
 import time
 import math
+import csv
 
 import signal
 
 from agv_filters import MedianFilter, MovingAverageFilter
 
-# CONSTANTS
-OFFSET = 455
-MIN_ERROR = 15
-MIN_SPEED = 2.5
+class AGV:
 
-# pololu_mf = MedianFilter(5)
-# tfmini_mf = MedianFilter(5)
-pololu_mf = MedianFilter(window_width=5, num_sensors=4)
-tfmini_mf = MedianFilter(window_width=5, num_sensors=4)
+    def __init__(self):
 
-global_stop_flag = False
+        # CONSTANTS
+        self.OFFSET = 455
+        self.MIN_ERROR = 15
+        self.MIN_SPEED = 2.5
 
-xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.112'
+        self.f = open('agv_log.csv', 'w')
+        self.writer = csv.writer(f)
+        self.writer.writerow(['pid_align', 'output_align', 'error', 'angle', 'distance'])
 
-right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
-left_wheel_publisher = rospy.Publisher('left_velocity/command', Float64, queue_size=10)
+        self.pololu_mf = MedianFilter(window_width=5, num_sensors=4)
+        self.tfmini_mf = MedianFilter(window_width=5, num_sensors=4)
 
-rospy.init_node('robot_controller', anonymous=True)
+        self.global_stop_flag = False
 
-#Setpoint [rad/s]
-#W miarę OK
-# Kp = 7
-# Ki = 15
-# Kd = 0.5
+        self.xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.112'
 
-# RIGHT WHEEL PID
-pid_right = PID(6, 5, 0.1, setpoint=0)
-pid_right.sample_time = 0.001
-pid_right.output_limits = (-1000, 1000)
+        self.right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
+        self.left_wheel_publisher = rospy.Publisher('left_velocity/command', Float64, queue_size=10)
 
-# LEFT WHEEL PID
-pid_left = PID(5, 5, 0.1, setpoint=0)
-pid_left.sample_time = 0.001
-pid_left.output_limits = (-1000, 1000)
+        rospy.init_node('robot_controller', anonymous=True)
 
-# ALIGNMENT PID
-pid_align = PID(2.5, 0.4, 0.008)
-# pid_align = PID(20, 0, 0)
-pid_align.sample_time = 0.001
-pid_align.setpoint = -0.6
-pid_align.output_limits = (-20, 20)
+        # RIGHT WHEEL PID
+        # Setpoint [rad/s]
+        self.pid_right = PID(6, 5, 0.1, setpoint=0)
+        self.pid_right.sample_time = 0.001
+        self.pid_right.output_limits = (-1000, 1000)
 
-# DISTANCE PID
-pid_distance = PID(0.1, 0.1, 0)
-pid_distance.sample_time = 0.001
-# pid_distance.setpoint = 500
-pid_distance.output_limits = (-0.3, 0.3)
+        # LEFT WHEEL PID
+        self.pid_left = PID(5, 5, 0.1, setpoint=0)
+        self.pid_left.sample_time = 0.001
+        self.pid_left.output_limits = (-1000, 1000)
 
-# Read values from topic
-right_wheel_speed = 0
-left_wheel_speed = 0
+        # ALIGNMENT PID
+        # It controls alignment of a robota against the wall
+        # Setpoint [rad], output[rad]
 
-rospy.init_node('robot_controller', anonymous=True)
+        # pid_align = PID(2.5, 0.4, 0.008)
+        self.pid_align = PID(2, 0.5, 0.008)
+        self.pid_align.sample_time = 0.001
+        self.pid_align.setpoint = -0.6
+        self.pid_align.output_limits = (-20, 20)
 
-tfmini_measurements = [0, 0, 0, 0]
-pololu_measurements = [0, 0, 0, 0]
+        # DISTANCE PID
+        # It controls distance of robot from the wall. 
+        # Setpoint [mm], output[rad]
 
+        self.pid_distance = PID(0.001, 0, 0)
+        self.pid_distance.sample_time = 0.001
+        self.pid_distance.output_limits = (-0.3, 0.3)
 
-def controller_manager_setup():
-    command = f'{xavier_setup}'
-    command += ' && rosservice call /robot_driver/motor_contoller/turn_off_PID True'
-    command += ' && rosrun controller_manager controller_manager stop diff_drive'
-    command += ' && rosrun controller_manager controller_manager unload diff_drive'
-    command += ' && rosrun controller_manager controller_manager spawn right_velocity'
-    command += ' && rosrun controller_manager controller_manager spawn left_velocity'
-    p1=Popen(['/bin/bash', '-i', '-c', command])
+        # Read values from topic
+        self.right_wheel_speed = 0
+        self.left_wheel_speed = 0
 
-    p1.wait(timeout=60)
-    p1.terminate()
+        rospy.init_node('robot_controller', anonymous=True)
 
-def callback_pololu(msg, i):
-    global pololu_measurements
-    pololu_measurements[i] = float(msg.range)
-    # print(pololu_measurements)
+        self.tfmini_measurements = [0, 0, 0, 0]
+        self.pololu_measurements = [0, 0, 0, 0]
 
-def callback_tfmini(msg, i):
-    global tfmini_measurements
-    tfmini_measurements[i] = float(msg.range)
-    #print(tfmini_measurements)
+    def __del__(self):
+        self.f.close()
 
-def callback_joint_state(msg):
-    global right_wheel_speed, left_wheel_speed
-    right_wheel_speed = msg.velocity[1]
-    left_wheel_speed = msg.velocity[0]
-    # print(right_wheel_speed, left_wheel_speed)
+    def controller_manager_setup(self):
+        '''
+        Disable differential drive controller and enable separate controllers for each wheel. 
+        '''
 
-def listener():
-    global global_stop_flag
+        command = f'{self.xavier_setup}'
+        command += ' && rosservice call /robot_driver/motor_contoller/turn_off_PID True'
+        command += ' && rosrun controller_manager controller_manager stop diff_drive'
+        command += ' && rosrun controller_manager controller_manager unload diff_drive'
+        command += ' && rosrun controller_manager controller_manager spawn right_velocity'
+        command += ' && rosrun controller_manager controller_manager spawn left_velocity'
+        p1=Popen(['/bin/bash', '-i', '-c', command])
 
-    rospy.Subscriber('/joint_states', JointState, callback_joint_state)
-    for i in range(4):
-        rospy.Subscriber('/mega_driver/pololu/scan_'+str(i), Range, callback_pololu, callback_args=i)
-        rospy.Subscriber('/mega_driver/tfmini/scan_'+str(i), Range, callback_tfmini, callback_args=i)
+        p1.wait(timeout=60)
+        p1.terminate()
 
-    while not global_stop_flag: pass
-    # rospy.spin()
+    def callback_pololu(self, msg, i):
+        '''
+        Read pololu data from ROS topic
+        '''
+        self.pololu_measurements[i] = float(msg.range)
 
-def move_right_wheel(speed):
-    '''
-    Move right wheel using PID controller.
-    '''
-    RIGHT_OFFSET = 450
+    def callback_tfmini(self, msg, i):
+        '''
+        Read tfmini data from ROS topic
+        '''
+        self.tfmini_measurements[i] = float(msg.range)
 
-    global pid_right, right_wheel_speed
+    def callback_joint_state(self, msg):
+        '''
+        Get speed values [rad/s] of each wheel. 
+        '''
+        self.right_wheel_speed = msg.velocity[1]
+        self.left_wheel_speed = msg.velocity[0]
 
-    if speed < MIN_SPEED and speed > 0: speed=MIN_SPEED
-    elif speed > -MIN_SPEED and speed < 0: speed=-MIN_SPEED
+    def listener(self):
+        '''
+        Read data from given topics and send save them to choosen variables
+        '''
+        global global_stop_flag
 
-    pid_right.setpoint=speed
-    output = pid_right(right_wheel_speed)
+        rospy.Subscriber('/joint_states', JointState, self.callback_joint_state)
+        for i in range(4):
+            rospy.Subscriber('/mega_driver/pololu/scan_'+str(i), Range, self.callback_pololu, callback_args=i)
+            rospy.Subscriber('/mega_driver/tfmini/scan_'+str(i), Range, self.callback_tfmini, callback_args=i)
 
-    if speed > 0 and output < 0:
-        output=0
-    elif speed < 0 and output > 0:
-        output=0
+        while not global_stop_flag: pass
 
-    if output > 0: output += RIGHT_OFFSET
-    elif output < 0: output -= RIGHT_OFFSET
-    right_wheel_publisher.publish(output)
+    def move_right_wheel(self, speed):
+        '''
+        Move right wheel using PID controller.
+        '''
+        RIGHT_OFFSET = 450
 
-def move_left_wheel(speed):
-    '''
-    Move left wheel using PID controller.
-    '''
+        global pid_right, right_wheel_speed
 
-    LEFT_OFFSET = 480
+        if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
+        elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
 
-    global pid_left, left_wheel_speed
+        self.pid_right.setpoint=speed
+        output = self.pid_right(self.right_wheel_speed)
 
-    if speed < MIN_SPEED and speed > 0: speed=MIN_SPEED
-    elif speed > -MIN_SPEED and speed < 0: speed=-MIN_SPEED
+        if speed > 0 and output < 0:
+            output=0
+        elif speed < 0 and output > 0:
+            output=0
 
-    pid_left.setpoint=speed
-    output = pid_left(left_wheel_speed)
+        if output > 0: output += RIGHT_OFFSET
+        elif output < 0: output -= RIGHT_OFFSET
+        self.right_wheel_publisher.publish(output)
 
-    if speed > 0 and output < 0:
-        output=0
-    elif speed < 0 and output > 0:
-        output=0
+    def move_left_wheel(self, speed):
+        '''
+        Move left wheel using PID controller.
+        '''
 
-    if output > 0: output += LEFT_OFFSET
-    elif output < 0: output -= LEFT_OFFSET
+        LEFT_OFFSET = 480
 
-    # print(f'{output=}')
-    left_wheel_publisher.publish(output)
+        global pid_left, left_wheel_speed
 
-def full_stop():
-    '''
-    Stop all motors, by sending 0% PWM signal.
-    '''
+        if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
+        elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
 
-    right_wheel_publisher.publish(0)
-    left_wheel_publisher.publish(0)
+        self.pid_left.setpoint=speed
+        output = self.pid_left(self.left_wheel_speed)
 
-def get_angle(error):
-    D = 195
+        if speed > 0 and output < 0:
+            output=0
+        elif speed < 0 and output > 0:
+            output=0
 
-    return math.asin(error/math.sqrt(D**2+error**2))
+        if output > 0: output += LEFT_OFFSET
+        elif output < 0: output -= LEFT_OFFSET
 
-def get_distance_from_wall(l1, l2, angle):
-    # In mm
-    X0 = 150   #X0 = 150
-    Y0 = 87    #Y0 = 85
+        self.left_wheel_publisher.publish(output)
 
-    # d/l1 = cos(alfa) - > d = li
+    def full_stop(self):
+        '''
+        Stop all motors, by sending 0% PWM signal.
+        '''
 
-    angle = get_angle(l2-l1)
+        self.right_wheel_publisher.publish(0)
+        self.left_wheel_publisher.publish(0)
 
-    d = l1 * math.cos(angle)
+    def get_angle(error):
+        '''
+        Calculate angle of a robot to the wall
+        '''
+        D = 195
+        return math.asin(error/math.sqrt(D**2+error**2))
 
-    return d + math.cos(angle) * X0 - math.sin(angle) * Y0
+    def get_distance_from_wall(self, l1, l2):
+        '''
+        Calculate the distance of the point on the robot placed between the wheels
+        '''
+        # In mm
+        X0 = 150
+        Y0 = 87
 
-def dead_space(value, cutter):
-    '''
-    Exclude dead space from given value and its cutter.
-    '''
+        # d/l1 = cos(alfa) - > d = li
 
-    if value > cutter: value=cutter
-    elif value < cutter: value=cutter
-    return value
+        angle = self.get_angle(l2-l1)
 
-def align_robot(sensor='tfmini', precision=False):
-    '''
-    Put robot in parallel position to the wall.
-    '''
+        d = l1 * math.cos(angle)
 
-    global pid_align
-    global pid_distance
+        return d + math.cos(angle) * X0 - math.sin(angle) * Y0
 
-    global pololu_mf
-    global tfmini_mf
+    def dead_space(value, cutter):
+        '''
+        Exclude dead space from given value and its cutter.
+        '''
 
-    if sensor=='tfmini':
-        if precision:
-            tfmini_mf.update_measurements(tfmini_measurements)
-            precise_tfmini = tfmini_mf.output()
-            error = precise_tfmini[3] - precise_tfmini[2]
+        if value > cutter: value=cutter
+        elif value < cutter: value=cutter
+        return value
+
+    def align_robot(self, set_distance, distance_error, angle_error, sensor='tfmini', precision=False):
+        '''
+        Put the robot in a position parallel to the wall.
+        '''
+
+        global pid_align
+        global pid_distance
+
+        global pololu_mf
+        global tfmini_mf
+
+        if sensor=='tfmini':
+            if precision:
+                self.tfmini_mf.update_measurements(self.tfmini_measurements)
+                precise_tfmini = self.tfmini_mf.output()
+                error = precise_tfmini[3] - precise_tfmini[2]
+            else:
+                error = self.tfmini_measurements[3] - self.tfmini_measurements[2] # Rear - front
+
+            if -self.MIN_ERROR <= error <= self.MIN_ERROR: error = 0
+
+            # distance = get_distance_from_wall(pololu_measurements[2], tfmini_measurements[3])
+
+        elif sensor=='pololu':
+            if precision:
+                self.pololu_mf.update_measurements(self.pololu_measurements)
+                precise_pololu = self.pololu_mf.output()
+                error = precise_pololu[3] - precise_pololu[2]
+            else:
+                error = self.pololu_measurements[3] - self.pololu_measurements[2] # Rear - front
+
+            # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
+
+        # print('tf2', pololu_measurements[2], end='\t')
+        # print('tf3', pololu_measurements[3], end='\t')
+        # print('difference', pololu_measurements[3] - pololu_measurements[2])
+
+        angle = self.get_angle(error)
+        distance = self.get_distance_from_wall(self.pololu_measurements[2], self.pololu_measurements[3])
+
+        self.pid_distance.setpoint = 500
+
+        if 480 < distance < 520:
+            self.pid_align.setpoint = 0
         else:
-            error = tfmini_measurements[3] - tfmini_measurements[2] # Rear - front
+            self.pid_align.setpoint = -self.pid_distance(distance)
 
-        if -MIN_ERROR <= error <= MIN_ERROR: error = 0
+        output_align = self.pid_align(angle)
 
-        # distance = get_distance_from_wall(pololu_measurements[2], tfmini_measurements[3], error)
+        # if output_align < 0: output_align -=5
+        # elif output_align >0: output_align += 5
 
-    elif sensor=='pololu':
-        if precision:
-            pololu_mf.update_measurements(pololu_measurements)
-            precise_pololu = pololu_mf.output()
-            error = precise_pololu[3] - precise_pololu[2]
+        print(f'{self.pid_align.setpoint=}, {output_align=}, {error=}, {angle=}, {distance=}')
+        self.writer.writerow([self.pid_align.setpoint, output_align, error, angle, distance])
+
+        return output_align, error, angle
+
+    def docking(self, base_speed=2.8):
+
+        if alignment_angle > self.pid_align.setpoint:
+            self.move_right_wheel(base_speed)
+            self.move_left_wheel(base_speed + abs(alignment_movement))
+        elif alignment_angle < self.pid_align.setpoint:
+            self.move_right_wheel(base_speed + abs(alignment_movement))
+            self.move_left_wheel(base_speed)
         else:
-            error = pololu_measurements[3] - pololu_measurements[2] # Rear - front
+            self.move_right_wheel(base_speed)
+            self.move_left_wheel(base_speed)
 
-        # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
+    def find_docking_wall(self):
+        '''
+        Based on the distance from the front lidar, specify if the robot
+        is close enough to the wall to start the alignment process.
+        '''
 
-    # print('tf2', pololu_measurements[2], end='\t')
-    # print('tf3', pololu_measurements[3], end='\t')
-    # print('difference', pololu_measurements[3] - pololu_measurements[2])
-
-    angle = get_angle(error)
-    distance = get_distance_from_wall(pololu_measurements[2], pololu_measurements[3], angle)
-
-    pid_distance.setpoint = 500
-
-    if 480 < distance < 520:
-        pid_align.setpoint = 0
-    else:
-        pid_align.setpoint = -pid_distance(distance)
-
-    output_align = pid_align(angle)
-
-    # if output_align < 0: output_align -=5
-    # elif output_align >0: output_align += 5
-
-    print(f'{pid_align.setpoint=}, {output_align=}, {error=}, {angle=}, {distance=}')
-
-    return output_align, error, angle
-
-def find_docking_wall():
-    '''
-    Based on the distance from the front lidar, specify if the robot
-    is close enough to the wall to start the alignment process.
-    '''
-
-    pass
-
-def docking():
-    pass
+        pass
 
 def signal_handler(signal, frame):
-    global global_stop_flag
-    global_stop_flag = True
+        global global_stop_flag
+        global_stop_flag = True
 
 
 if __name__ == '__main__':
 
+    robot = AGV()
+
     signal.signal(signal.SIGINT, signal_handler)
 
-    #Use right_velocity and left_velocity instead of diff_drive
-    #Disconnect built in PID controller
+    # Use right_velocity and left_velocity instead of diff_drive
+    # Disconnect built in PID controller
     # controller_manager_setup()
 
-    #Start listener thread
-    listener_thread = threading.Thread(target=listener)
+    # Start listener thread
+    listener_thread = threading.Thread(target=robot.listener)
     listener_thread.setDaemon(True)
     listener_thread.start()
 
-    full_stop()
+    robot.full_stop()
     while True:
-        alignment_movement, alignment_error, alignment_angle = align_robot('pololu', True)
+        alignment_movement, alignment_error, alignment_angle = robot.align_robot('pololu', True)
 
         try:
             forward_movement = 5 / abs(alignment_error)
         except ZeroDivisionError:
              forward_movement = 5
 
-        # print(get_angle(alignment_error))
-        # print(get_distance_from_wall(pololu_measurements[2], pololu_measurements[3], alignment_angle))
-
-        # move_left_wheel(abs(alignment_movement))
-        # move_right_wheel(alignment_movement)
-
-        base_speed = 2.8
-        if alignment_angle > pid_align.setpoint:
-            move_right_wheel(base_speed)
-            move_left_wheel(base_speed + abs(alignment_movement))
-        elif alignment_angle < pid_align.setpoint:
-            move_right_wheel(base_speed + abs(alignment_movement))
-            move_left_wheel(base_speed)
-        else:
-            move_right_wheel(base_speed)
-            move_left_wheel(base_speed)
-
-
-        # move_right_wheel(alignment_movement)
-        # move_left_wheel(-alignment_movement)
-
         if global_stop_flag:
             break
 
     print('debug message')
-    full_stop()
-    #rospy.signal_shutdown('Finished Docking')
+    robot.full_stop()
+    # rospy.signal_shutdown('Finished Docking')
     listener_thread.join()
+
+    del robot
     print('that\'s all folks, end of the story')
