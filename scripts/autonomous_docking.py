@@ -6,6 +6,7 @@ from logging import error
 from numpy.core.numeric import full
 from geometry_msgs import msg
 import rospy
+from rospy.exceptions import ROSTimeMovedBackwardsException
 from std_msgs.msg import Float64
 from sensor_msgs.msg import JointState, Imu, Range
 
@@ -31,7 +32,7 @@ class AGV:
         self.MIN_SPEED = 2.5
 
         self.f = open('agv_log.csv', 'w')
-        self.writer = csv.writer(f)
+        self.writer = csv.writer(self.f)
         self.writer.writerow(['pid_align', 'output_align', 'error', 'angle', 'distance'])
 
         self.pololu_mf = MedianFilter(window_width=5, num_sensors=4)
@@ -62,7 +63,7 @@ class AGV:
         # Setpoint [rad], output[rad]
 
         # pid_align = PID(2.5, 0.4, 0.008)
-        self.pid_align = PID(2, 0.5, 0.008)
+        self.pid_align = PID(3, 0.5, 0.008)
         self.pid_align.sample_time = 0.001
         self.pid_align.setpoint = -0.6
         self.pid_align.output_limits = (-20, 20)
@@ -71,7 +72,7 @@ class AGV:
         # It controls distance of robot from the wall. 
         # Setpoint [mm], output[rad]
 
-        self.pid_distance = PID(0.001, 0, 0)
+        self.pid_distance = PID(0.002, 0.00002, 0.00002)
         self.pid_distance.sample_time = 0.001
         self.pid_distance.output_limits = (-0.3, 0.3)
 
@@ -126,14 +127,13 @@ class AGV:
         '''
         Read data from given topics and send save them to choosen variables
         '''
-        global global_stop_flag
 
         rospy.Subscriber('/joint_states', JointState, self.callback_joint_state)
         for i in range(4):
             rospy.Subscriber('/mega_driver/pololu/scan_'+str(i), Range, self.callback_pololu, callback_args=i)
             rospy.Subscriber('/mega_driver/tfmini/scan_'+str(i), Range, self.callback_tfmini, callback_args=i)
 
-        while not global_stop_flag: pass
+        while not self.global_stop_flag: pass
 
     def move_right_wheel(self, speed):
         '''
@@ -191,7 +191,7 @@ class AGV:
         self.right_wheel_publisher.publish(0)
         self.left_wheel_publisher.publish(0)
 
-    def get_angle(error):
+    def get_angle(self, error):
         '''
         Calculate angle of a robot to the wall
         '''
@@ -206,7 +206,7 @@ class AGV:
         X0 = 150
         Y0 = 87
 
-        # d/l1 = cos(alfa) - > d = li
+        # d/l1 = cos(alfa) -> d = li
 
         angle = self.get_angle(l2-l1)
 
@@ -223,17 +223,11 @@ class AGV:
         elif value < cutter: value=cutter
         return value
 
-    def align_robot(self, set_distance, distance_error, angle_error, sensor='tfmini', precision=False):
+    def align_robot(self, set_distance, distance_error, sensor='tfmini', precision=False):
         '''
         Put the robot in a position parallel to the wall.
         '''
-
-        global pid_align
-        global pid_distance
-
-        global pololu_mf
-        global tfmini_mf
-
+        
         if sensor=='tfmini':
             if precision:
                 self.tfmini_mf.update_measurements(self.tfmini_measurements)
@@ -256,17 +250,16 @@ class AGV:
 
             # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
-        # print('tf2', pololu_measurements[2], end='\t')
-        # print('tf3', pololu_measurements[3], end='\t')
-        # print('difference', pololu_measurements[3] - pololu_measurements[2])
-
         angle = self.get_angle(error)
         distance = self.get_distance_from_wall(self.pololu_measurements[2], self.pololu_measurements[3])
 
-        self.pid_distance.setpoint = 500
+        self.pid_distance.setpoint = set_distance
 
-        if 480 < distance < 520:
+        if set_distance * (1 - distance_error/100) < distance < set_distance * (1 + distance_error/100):
             self.pid_align.setpoint = 0
+
+            if -10< error < 10:
+                self.global_stop_flag = True
         else:
             self.pid_align.setpoint = -self.pid_distance(distance)
 
@@ -280,7 +273,13 @@ class AGV:
 
         return output_align, error, angle
 
-    def docking(self, base_speed=2.8):
+    def docking(self, base_speed=3, set_distance=500):
+        '''
+        Based on calculations (PID Controlers, angles etc.) guide the robot to the predifined
+        docking position. 
+        '''
+
+        alignment_movement, alignment_error, alignment_angle = self.align_robot(set_distance, 10, 'pololu', True)
 
         if alignment_angle > self.pid_align.setpoint:
             self.move_right_wheel(base_speed)
@@ -292,6 +291,7 @@ class AGV:
             self.move_right_wheel(base_speed)
             self.move_left_wheel(base_speed)
 
+
     def find_docking_wall(self):
         '''
         Based on the distance from the front lidar, specify if the robot
@@ -301,8 +301,8 @@ class AGV:
         pass
 
 def signal_handler(signal, frame):
-        global global_stop_flag
-        global_stop_flag = True
+    global robot
+    robot.global_stop_flag = True
 
 
 if __name__ == '__main__':
@@ -310,10 +310,7 @@ if __name__ == '__main__':
     robot = AGV()
 
     signal.signal(signal.SIGINT, signal_handler)
-
-    # Use right_velocity and left_velocity instead of diff_drive
-    # Disconnect built in PID controller
-    # controller_manager_setup()
+    # robot.controller_manager_setup()
 
     # Start listener thread
     listener_thread = threading.Thread(target=robot.listener)
@@ -321,20 +318,16 @@ if __name__ == '__main__':
     listener_thread.start()
 
     robot.full_stop()
+    start = time.time()
     while True:
-        alignment_movement, alignment_error, alignment_angle = robot.align_robot('pololu', True)
+        robot.docking(2.8, 500)
 
-        try:
-            forward_movement = 5 / abs(alignment_error)
-        except ZeroDivisionError:
-             forward_movement = 5
-
-        if global_stop_flag:
+        if robot.global_stop_flag:
             break
 
-    print('debug message')
+    end = time.time()
+
     robot.full_stop()
-    # rospy.signal_shutdown('Finished Docking')
     listener_thread.join()
 
     del robot
