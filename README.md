@@ -4,16 +4,21 @@ Work is still in progress!
 
 
 # AGV-Autonomous-Docking
-Algorithm for autonomous docking of AGV platform with ROS.
+Algorithm for autonomous docking of AGV platform.
 
 ## Problem
 
 Alrogithm that allows robot with differential drive to dock to two types of platforms:
-- Wall
-- Platform in a shape of letter "L"
 
+Types of docking stations:
+- Straight wall
+- Walls in a shape of a letter "L"
+
+Docking means positioning the robot with proper alignemnt and distance to wall or walls. 
  
 ## Solution
+
+
 
 ### Wheel Control
 
@@ -25,5 +30,12 @@ Alrogithm that allows robot with differential drive to dock to two types of plat
 
 ## Techonologies
 
+- Python
+- ROS
+- Nvidia Xavier
+
 ## Sensors
+
+- Lidar
+- ToF
 
