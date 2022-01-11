@@ -10,7 +10,7 @@ Algorithm for autonomous docking of AGV platform with ROS.
 
 Alrogithm that allows robot with differential drive to dock to two types of platforms:
 - Wall
-- Platform in shape of letter "L"
+- Platform in a shape of letter "L"
 
  
 ## Solution
