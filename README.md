@@ -57,6 +57,8 @@ Output - RPM
 
 With help of differtial drive, robot can be rotated by spinning wheels in the opposite directions. RPM can be a positive or negative based on the direction in which the robot is suposed to turn. 
 
+Black squares on the AGV platform are distance sensor, either Lidar or ToF. 
+
 <p align="center">
   <img src="images/align_1.png" width="500" />
 </p>
@@ -97,6 +99,10 @@ Output - Angle
 | Angle |  0.002 | 0.00002  | 0.00002  |
 
 #### Distance calculation
+
+<p align="center">
+  <img src="images/distance_measurement.png" width="500" />
+</p>
 
 ```
  def get_distance_from_wall(self, l1, l2):
