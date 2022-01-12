@@ -71,6 +71,12 @@ The advatage of this algorithm is that the robot can be aligned in any angle, so
 
 Angle of the robot against the wall. 
 
+Error is calculated as a difference betweeen L1 and L2. 
+
+``
+error = L1 - L2
+``
+
 ```
  def get_angle(self, error):
      D = 195
@@ -91,12 +97,6 @@ Output - Angle
 | Angle |  0.002 | 0.00002  | 0.00002  |
 
 #### Distance calculation
-
-Error is calculated as a difference betweeen L1 and L2. 
-
-``
-error = L1 - L2
-``
 
 ```
  def get_distance_from_wall(self, l1, l2):
