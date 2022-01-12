@@ -48,7 +48,7 @@ Output - RPM
 
 |   | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
-|  Wheel RPM |  6 | 5  | 0.1  |
+|  Wheel RPM |  3 | 0.5  | 0.008  |
 
 <p align="center">
   <img src="images/aligned.png" width="500" />
@@ -70,6 +70,12 @@ The advatage of this algorithm is that the robot can be aligned in any angle, so
 
 Angle of the robot against the wall. 
 
+``
+ def get_angle(self, error):
+     D = 195
+     return math.asin(error/math.sqrt(D**2+error**2))
+``
+
 ### Distance Control
 
 As stated before, because robot can achive any angle alignemnt, it can be steered away or to the wall. This way, AGV can achieve any distance from the wall. 
@@ -81,9 +87,24 @@ Output - Angle
 
 |   | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
-| Angle |  6 | 5  | 0.1  |
+| Angle |  0.002 | 0.00002  | 0.00002  |
 
 #### Distance calculation
+
+``
+ def get_distance_from_wall(self, l1, l2):
+     # In mm
+     X0 = 150
+     Y0 = 87
+
+     # d/l1 = cos(alfa) -> d = li
+
+     angle = self.get_angle(l2-l1)
+
+     d = l1 * math.cos(angle)
+
+     return d + math.cos(angle) * X0 - math.sin(angle) * Y0
+``
 
 Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
 
