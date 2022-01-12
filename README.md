@@ -20,7 +20,12 @@ Docking means positioning the robot with proper alignemnt and distance to wall o
  
 ## Solution
 
-Solution was divided into three parts.
+Solution was divided into three parts:
+- Wheel control
+- Alignment
+- Distance control
+
+All those parts are based on using PID controlers, with different tasks.
 
 ### Wheel Control
 
@@ -38,9 +43,14 @@ Output - PWM
 
 Next part of the algorithm is to align robot against the wall. To do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels that allows robot to rotate. 
 
+Input - Angle
+Output - RPM
+
 <p align="center">
   <img src="images/aligned.png" width="500" />
 </p>
+
+RPM can be a positive or negative number based on the direction in which the robot is suposed to turn. 
 
 <p align="center">
   <img src="images/align_1.png" width="500" />
@@ -50,6 +60,7 @@ Next part of the algorithm is to align robot against the wall. To do that, anoth
   <img src="images/align_2.png" width="500" />
 </p>
 
+The advatage of this algorithm is that the robot can be aligned in any angle, something between -0.3 rad and 0.3 rad. 
 
 #### Angle calculation
 
@@ -57,9 +68,20 @@ Angle of the robot against the wall.
 
 ### Distance Control
 
+As stated before, because robot can achive any angle alignemnt, it can be steered away or to the wall. This way, AGV can achieve any distance from the wall. 
+
+To achive that, another PID regulator was used. This time it calculates the angle that the robot is supposed to achieve based on the difference between current distance and selected distance. 
+
+Input - Difference between distances
+Output - Angle
+
 #### Distance calculation
 
 Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
+
+## Summary
+
+To sum up, the algorithm consits of chainged PID controllers that control three properties: wheel speed, alignment (angle) and distance. By controlling those values, ....
 
 ## Techonologies
 
