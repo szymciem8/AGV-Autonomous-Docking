@@ -193,7 +193,7 @@ class AGV:
 
     def get_angle(self, error):
         '''
-        Calculate angle of a robot to the wall
+        Calculate angle of a robot against the wall
         '''
         D = 195
         return math.asin(error/math.sqrt(D**2+error**2))
