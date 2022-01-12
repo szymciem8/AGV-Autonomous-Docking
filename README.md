@@ -1,3 +1,5 @@
+![license][]
+
 # DISCLAIMER
 
 Work is still in progress! 
@@ -47,3 +49,4 @@ Calculates distance of a point of the robot, which is placed in the center of th
 - Lidar
 - ToF
 
+[license]:https://img.shields.io/github/license/szymciem8/AGV-Autonomous-Docking
