@@ -32,6 +32,15 @@ Each wheel has to be controlled individually.
   <img src="images/aligned.png" width="500" />
 </p>
 
+<p align="center">
+  <img src="images/align_1.png" width="500" />
+</p>
+
+<p align="center">
+  <img src="images/align_2.png" width="500" />
+</p>
+
+
 #### Angle calculation
 
 Angle of the robot against the wall. 
