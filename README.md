@@ -24,7 +24,10 @@ Solution was divided into three parts.
 
 ### Wheel Control
 
-Each wheel has to be controlled individually. 
+Each wheel has to be controlled individually using PID regulator. PID helps to adequate PWM signals that achieves chooses RPM in give conditions.   
+
+Input - RPM
+Output - PWM
 
 |   | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
@@ -32,6 +35,8 @@ Each wheel has to be controlled individually.
 |  Left wheel | 5  | 5  |  0.1 |
 
 ### Alignemnt
+
+Next part of the algorithm is to align robot against the wall. To do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels that allows robot to rotate. 
 
 <p align="center">
   <img src="images/aligned.png" width="500" />
