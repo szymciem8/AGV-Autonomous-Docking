@@ -54,7 +54,8 @@ Output - RPM
   <img src="images/aligned.png" width="500" />
 </p>
 
-RPM can be a positive or negative number based on the direction in which the robot is suposed to turn. 
+
+With help of differtial drive, robot can be rotated by spinning wheels in the opposite directions. RPM can be a positive or negative based on the direction in which the robot is suposed to turn. 
 
 <p align="center">
   <img src="images/align_1.png" width="500" />
@@ -64,7 +65,7 @@ RPM can be a positive or negative number based on the direction in which the rob
   <img src="images/align_2.png" width="500" />
 </p>
 
-The advatage of this algorithm is that the robot can be aligned in any angle, something between -0.3 rad and 0.3 rad. 
+The advatage of this algorithm is that the robot can be aligned in any angle, something between -0.3 and 0.3 radians. 
 
 #### Angle calculation
 
@@ -90,6 +91,12 @@ Output - Angle
 | Angle |  0.002 | 0.00002  | 0.00002  |
 
 #### Distance calculation
+
+Error is calculated as a difference betweeen L1 and L2. 
+
+``
+error = L1 - L2
+``
 
 ```
  def get_distance_from_wall(self, l1, l2):
