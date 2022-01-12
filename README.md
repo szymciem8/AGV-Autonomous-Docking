@@ -16,7 +16,7 @@ Types of docking stations:
 - Straight wall
 - Walls in a shape of a letter "L"
 
-Docking means positioning the robot with proper alignemnt and distance to wall or walls. 
+Docking means positioning the robot with proper alignemnt and distance to the wall or walls. 
  
 ## Solution
 
@@ -25,16 +25,16 @@ Solution was divided into three parts:
 - Alignment
 - Distance control
 
-All those parts are based on using PID controlers, with different tasks.
+All those parts are based on using PID controlers for different actions.
 
 ### Wheel Control
 
-Each wheel has to be controlled individually using PID regulator. PID helps to adequate PWM signals that achieves chooses RPM in give conditions.   
+Each wheel has to be controlled individually using PID regulator. PID helps to generate adequate PWM signal that achieves choosen RPM in given conditions.   
 
 Input - RPM
 Output - PWM
 
-|   | Kp  | Ki  | Kd  | 
+|Settings   | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
 |  Right wheel |  6 | 5  | 0.1  |
 |  Left wheel | 5  | 5  |  0.1 |
@@ -46,7 +46,7 @@ Next part of the algorithm is to align robot against the wall. To do that, anoth
 Input - Angle
 Output - RPM
 
-|   | Kp  | Ki  | Kd  | 
+| Settings  | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
 |  Wheel RPM |  3 | 0.5  | 0.008  |
 
@@ -70,13 +70,11 @@ The advatage of this algorithm is that the robot can be aligned in any angle, so
 
 Angle of the robot against the wall. 
 
-``
-
+```
  def get_angle(self, error):
      D = 195
-     return math.asin(error/math.sqrt(D**2+error**2))
-     
-``
+     return math.asin(error/math.sqrt(D**2+error**2)) 
+```
 
 ### Distance Control
 
@@ -87,14 +85,13 @@ To achive that, another PID regulator was used. This time it calculates the angl
 Input - Difference between distances
 Output - Angle
 
-|   | Kp  | Ki  | Kd  | 
+| Settings  | Kp  | Ki  | Kd  | 
 |:-:|:-:|:-:|:-:|
 | Angle |  0.002 | 0.00002  | 0.00002  |
 
 #### Distance calculation
 
-``
-
+```
  def get_distance_from_wall(self, l1, l2):
      # In mm
      X0 = 150
@@ -106,9 +103,8 @@ Output - Angle
 
      d = l1 * math.cos(angle)
 
-     return d + math.cos(angle) * X0 - math.sin(angle) * Y0
-     
-``
+     return d + math.cos(angle) * X0 - math.sin(angle) * Y0  
+```
 
 Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
 
