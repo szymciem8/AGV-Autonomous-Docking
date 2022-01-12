@@ -26,11 +26,10 @@ Solution was divided into three parts.
 
 Each wheel has to be controlled individually. 
 
-|   | Kp  | Ki  | Kd  |   |
-|:-:|:-:|:-:|:-:|---|
-|   |   |   |   |   |
-|   |   |   |   |   |
-|   |   |   |   |   |
+|   | Kp  | Ki  | Kd  | 
+|:-:|:-:|:-:|:-:|
+|  Right wheel |  6 | 5  | 0.1  |
+|  Left wheel | 5  | 5  |  0.1 |
 
 ### Alignemnt
 
