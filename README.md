@@ -46,6 +46,10 @@ Next part of the algorithm is to align robot against the wall. To do that, anoth
 Input - Angle
 Output - RPM
 
+|   | Kp  | Ki  | Kd  | 
+|:-:|:-:|:-:|:-:|
+|  Wheel RPM |  6 | 5  | 0.1  |
+
 <p align="center">
   <img src="images/aligned.png" width="500" />
 </p>
@@ -74,6 +78,10 @@ To achive that, another PID regulator was used. This time it calculates the angl
 
 Input - Difference between distances
 Output - Angle
+
+|   | Kp  | Ki  | Kd  | 
+|:-:|:-:|:-:|:-:|
+| Angle |  6 | 5  | 0.1  |
 
 #### Distance calculation
 
