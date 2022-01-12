@@ -26,6 +26,12 @@ Solution was divided into three parts.
 
 Each wheel has to be controlled individually. 
 
+|   | Kp  | Ki  | Kd  |   |
+|:-:|:-:|:-:|:-:|---|
+|   |   |   |   |   |
+|   |   |   |   |   |
+|   |   |   |   |   |
+
 ### Alignemnt
 
 <p align="center">
