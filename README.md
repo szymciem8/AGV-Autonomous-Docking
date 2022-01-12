@@ -28,6 +28,10 @@ Each wheel has to be controlled individually.
 
 ### Alignemnt
 
+<p align="center">
+  <img src="images/aligned.png" width="850" />
+</p>
+
 #### Angle calculation
 
 Angle of the robot against the wall. 
