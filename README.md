@@ -101,7 +101,7 @@ Output - Angle
 #### Distance calculation
 
 <p align="center">
-  <img src="images/distance_measurement.png" width="500" />
+  <img src="images/measure_distance.png" width="500" />
 </p>
 
 ```
