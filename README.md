@@ -29,7 +29,7 @@ Each wheel has to be controlled individually.
 ### Alignemnt
 
 <p align="center">
-  <img src="images/aligned.png" width="850" />
+  <img src="images/aligned.png" width="500" />
 </p>
 
 #### Angle calculation
