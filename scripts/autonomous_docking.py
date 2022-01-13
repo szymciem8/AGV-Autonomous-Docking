@@ -17,30 +17,32 @@ from subprocess import call, Popen
 import time
 import math
 import csv
+import os
 
+import rosbag
 import signal
 
 from agv_filters import MedianFilter, MovingAverageFilter
 
 class AGV:
 
-    def __init__(self):
+    def __init__(self, file_name):
 
         # CONSTANTS
         self.OFFSET = 455
         self.MIN_ERROR = 15
         self.MIN_SPEED = 2.5
 
-        self.f = open('agv_log.csv', 'w')
+        path = os.path.join(os.path.dirname(__file__), 'logs/' + file_name +'.csv')
+        self.f = open(path, 'w')
         self.writer = csv.writer(self.f)
-        self.writer.writerow(['pid_align', 'output_align', 'error', 'angle', 'distance'])
 
         self.pololu_mf = MedianFilter(window_width=5, num_sensors=4)
         self.tfmini_mf = MedianFilter(window_width=5, num_sensors=4)
 
         self.global_stop_flag = False
 
-        self.xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.112'
+        self.xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.109'
 
         self.right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
         self.left_wheel_publisher = rospy.Publisher('left_velocity/command', Float64, queue_size=10)
@@ -72,13 +74,20 @@ class AGV:
         # It controls distance of robot from the wall. 
         # Setpoint [mm], output[rad]
 
-        self.pid_distance = PID(0.002, 0.00002, 0.00002)
+        self.pid_distance = PID(0.002, 0, 0)
         self.pid_distance.sample_time = 0.001
         self.pid_distance.output_limits = (-0.3, 0.3)
 
         # Read values from topic
         self.right_wheel_speed = 0
         self.left_wheel_speed = 0
+
+        self.error = 0
+        self.distance = 0
+        self.angle = 0
+
+        self.precise_tfmini = None
+        self.precise_pololu = None
 
         rospy.init_node('robot_controller', anonymous=True)
 
@@ -232,25 +241,25 @@ class AGV:
             if precision:
                 self.tfmini_mf.update_measurements(self.tfmini_measurements)
                 precise_tfmini = self.tfmini_mf.output()
-                error = precise_tfmini[3] - precise_tfmini[2]
+                self.error = precise_tfmini[3] - precise_tfmini[2]
             else:
-                error = self.tfmini_measurements[3] - self.tfmini_measurements[2] # Rear - front
+                self.error = self.tfmini_measurements[3] - self.tfmini_measurements[2] # Rear - front
 
-            if -self.MIN_ERROR <= error <= self.MIN_ERROR: error = 0
+            if -self.MIN_ERROR <= self.error <= self.MIN_ERROR: self.error = 0
 
             # distance = get_distance_from_wall(pololu_measurements[2], tfmini_measurements[3])
 
         elif sensor=='pololu':
             if precision:
                 self.pololu_mf.update_measurements(self.pololu_measurements)
-                precise_pololu = self.pololu_mf.output()
-                error = precise_pololu[3] - precise_pololu[2]
+                self.precise_pololu = self.pololu_mf.output()
+                self.error = self.precise_pololu[3] - self.precise_pololu[2]
             else:
-                error = self.pololu_measurements[3] - self.pololu_measurements[2] # Rear - front
+                self.error = self.pololu_measurements[3] - self.pololu_measurements[2] # Rear - front
 
             # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
-        angle = self.get_angle(error)
+        self.angle = self.get_angle(self.error)
         distance = self.get_distance_from_wall(self.pololu_measurements[2], self.pololu_measurements[3])
 
         self.pid_distance.setpoint = set_distance
@@ -258,20 +267,20 @@ class AGV:
         if set_distance * (1 - distance_error/100) < distance < set_distance * (1 + distance_error/100):
             self.pid_align.setpoint = 0
 
-            if -10< error < 10:
+            if -10< self.error < 10:
                 self.global_stop_flag = True
         else:
             self.pid_align.setpoint = -self.pid_distance(distance)
 
-        output_align = self.pid_align(angle)
+        output_align = self.pid_align(self.angle)
 
         # if output_align < 0: output_align -=5
         # elif output_align >0: output_align += 5
 
-        print(f'{self.pid_align.setpoint=}, {output_align=}, {error=}, {angle=}, {distance=}')
-        self.writer.writerow([self.pid_align.setpoint, output_align, error, angle, distance])
+        # print(f'{self.pid_align.setpoint=}, {output_align=}, {error=}, {angle=}, {distance=}')
+        # self.writer.writerow([self.pid_align.setpoint, output_align, error, angle, distance])
 
-        return output_align, error, angle
+        return output_align, self.error, self.angle
 
     def docking(self, base_speed=3, set_distance=500):
         '''
@@ -291,6 +300,12 @@ class AGV:
             self.move_right_wheel(base_speed)
             self.move_left_wheel(base_speed)
 
+    def save_to_csv(self, data):
+
+        if data:
+            self.writer.writerow(data)
+        else:
+            self.writer.writerow([self.error, self.angle, self.distance])
 
     def find_docking_wall(self):
         '''
@@ -307,7 +322,11 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
 
-    robot = AGV()
+    n = '9'
+    base_speed = 2.5
+    rbag = 'without_rosbag'
+
+    robot = AGV('ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
 
     signal.signal(signal.SIGINT, signal_handler)
     # robot.controller_manager_setup()
@@ -318,9 +337,24 @@ if __name__ == '__main__':
     listener_thread.start()
 
     robot.full_stop()
+    robot.save_to_csv(['front[mm]', 'rear[mm]', 'PID Align setpoint', 'PID Distance setpoint', 'error[mm]', 'angle[rad]', 'distance[mm]', 'time[s]'])
+
+    topics = rospy.get_published_topics()
+
+    time.sleep(1)
+
     start = time.time()
     while True:
-        robot.docking(2.8, 500)
+        robot.docking(base_speed, 500)
+        robot.save_to_csv([robot.precise_pololu[2], 
+                           robot.precise_pololu[3], 
+                           robot.pid_align.setpoint, 
+                           robot.pid_distance.setpoint, 
+                           robot.error, 
+                           robot.angle, 
+                           robot.distance, 
+                           time.time()])
+        
 
         if robot.global_stop_flag:
             break
@@ -328,7 +362,14 @@ if __name__ == '__main__':
     end = time.time()
 
     robot.full_stop()
+
+    robot.save_to_csv(['Full Time',end-start])
+    full_distance = input('Full distance: ')
+
+    robot.save_to_csv(['Full Distance', full_distance])
     listener_thread.join()
+
+    # bag.close() 
 
     del robot
     print('that\'s all folks, end of the story')

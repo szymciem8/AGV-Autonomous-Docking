@@ -1,4 +1,7 @@
 import math
+import rosbag
+import rospy
+
 
 def get_angle(error):
     D = 195
@@ -33,5 +36,15 @@ def get_distance_from_wall(l1, l2):
     return d + math.cos(angle) * X0 + math.sin(angle) * Y0
 
 
-print(get_distance(150, 100))
-print(get_distance(100, 150))
+topics = rospy.get_published_topics()
+tp = []
+for topic in topics:
+    tp.append(topic[0])
+
+
+
+bag = rosbag.Bag('test.bag', 'w')
+for topic, msg, t in bag.read_messages(topics=tp):
+    print(t)
+
+bag.close()
