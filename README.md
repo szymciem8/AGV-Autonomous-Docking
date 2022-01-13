@@ -125,6 +125,11 @@ Calculates distance of a point of the robot, which is placed in the center of th
 
 System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
 
+
+<p align="center">
+  <img src="images/from_logs/test.png" width="500" />
+</p>
+
 ## Summary
 
 To sum up, the algorithm consits of chainged PID controllers that control three properties: wheel speed, alignment (angle) and distance. By controlling those values, ....
