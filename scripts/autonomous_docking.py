@@ -260,17 +260,17 @@ class AGV:
             # if -MIN_ERROR <= error <= MIN_ERROR: error = 0
 
         self.angle = self.get_angle(self.error)
-        distance = self.get_distance_from_wall(self.pololu_measurements[2], self.pololu_measurements[3])
+        self.distance = self.get_distance_from_wall(self.pololu_measurements[2], self.pololu_measurements[3])
 
         self.pid_distance.setpoint = set_distance
 
-        if set_distance * (1 - distance_error/100) < distance < set_distance * (1 + distance_error/100):
+        if set_distance * (1 - distance_error/100) < self.distance < set_distance * (1 + distance_error/100):
             self.pid_align.setpoint = 0
 
             if -10< self.error < 10:
                 self.global_stop_flag = True
         else:
-            self.pid_align.setpoint = -self.pid_distance(distance)
+            self.pid_align.setpoint = -self.pid_distance(self.distance)
 
         output_align = self.pid_align(self.angle)
 
@@ -325,8 +325,9 @@ if __name__ == '__main__':
     n = '9'
     base_speed = 2.5
     rbag = 'without_rosbag'
+    set_distance = 500
 
-    robot = AGV('ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
+    robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
 
     signal.signal(signal.SIGINT, signal_handler)
     # robot.controller_manager_setup()
