@@ -121,6 +121,10 @@ Output - Angle
 
 Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
 
+## Machine Learning -- IN PROGRESS!
+
+System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
+
 ## Summary
 
 To sum up, the algorithm consits of chainged PID controllers that control three properties: wheel speed, alignment (angle) and distance. By controlling those values, ....
