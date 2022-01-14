@@ -267,7 +267,7 @@ class AGV:
         if set_distance * (1 - distance_error/100) < self.distance < set_distance * (1 + distance_error/100):
             self.pid_align.setpoint = 0
 
-            if -10< self.error < 10:
+            if -10 < self.error < 10:
                 self.global_stop_flag = True
         else:
             self.pid_align.setpoint = -self.pid_distance(self.distance)

@@ -36,33 +36,60 @@ accurate_distance = df.iloc[-1,1]
 
 # Delete two last rows
 df = df.iloc[:-2]
-
 df = df.apply(pd.to_numeric)
 
 df['distance[mm]'] = get_distance_from_wall(df['front[mm]'], df['rear[mm]'], df['angle[rad]'])
 df['time[s]'] = df['time[s]'] - start_time
 df = df[df['distance[mm]'] > 399.0]
 
-df['angle[rad]'] = get_angle(df['error[mm]'])*1000
+df['angle[rad]'] = get_angle(df['error[mm]'])
 
-ax = plt.gca()
+time = df['time[s]'].values.tolist()
+distance = df['distance[mm]'].values.tolist()
+angle = df['angle[rad]'].values.tolist()
+pid_distance_setpoint = df['PID Distance setpoint'].values.tolist()
+pid_align_setpoint = df['PID Align setpoint'].values.tolist()
 
-df.plot(kind='line', x='time[s]', y='distance[mm]', ax=ax)
-df.plot(kind='line', x='time[s]', y='angle[rad]', ax=ax)
-df.plot(kind='line', x='time[s]', y='PID Distance setpoint', ax=ax)
-df.plot(kind='line', x='time[s]', y='PID Align setpoint', ax=ax)
+min_distance = (df['PID Distance setpoint'] + 50).values.tolist()
+max_distance = (df['PID Distance setpoint'] - 50).values.tolist()
 
+fig, axs = plt.subplots(2)
+axs[0].yaxis.set_ticks(np.arange(400, 600, 20))
+axs[0].xaxis.set_ticks(np.arange(0, 16, 1))
+axs[0].set_xlabel('Time[s]')
+axs[0].set_ylabel('Distance from wall [mm]')
+axs[0].fill_between(time, min_distance, max_distance, facecolor='green', alpha=0.2)
+axs[0].plot(time, distance)
+axs[0].plot(time, pid_distance_setpoint)
+axs[0].grid()
+axs[0].legend(['Distance', 'Distance setpoint', 'Acceptable error'])
 
-plt.rcParams['figure.figsize'] = (5,5)
+angle_from_error = get_angle(10)
+min_angle = list([angle_from_error] * len(time))
+max_angle = [-angle_from_error] * len(time)
 
+axs[1].yaxis.set_ticks(np.arange(-0.35, 0.35, 0.05))
+axs[1].xaxis.set_ticks(np.arange(0, 16, 1))
+axs[1].set_xlabel('Time[s]')
+axs[1].set_ylabel('Robot angle against the wall [rad]')
+axs[1].fill_between(time, min_angle, max_angle, facecolor='green', alpha=0.2)
+axs[1].plot(time, angle, 'tab:green')
+axs[1].plot(time, pid_align_setpoint, 'tab:red')
+axs[1].grid()
+axs[1].legend(['Actual angle', 'Angle setpoint', 'Acceptable angle'])
+
+fig.set_size_inches(15,9)
+
+plt.savefig('images/from_logs/'+ file +'.png', dpi=200)
 plt.show()
 
 # path = os.path.join(os.path.dirname(__file__), 'images/from_logs/' + file + '.png')
-plt.savefig('images/from_logs/test.png')
+
 
 path = os.path.join(os.path.dirname(__file__), 'logs/new_500/' + file + '.csv')
 df.to_csv(path, index=False)
 
 with open(path, 'a') as f:
     writer = csv.writer(f)
-    writer.writerow(['Full Distance'] + [5] + list(np.zeros(6)))
+    writer.writerow(['Full Time'] + [docking_time] + list(np.zeros(6)))
+    writer.writerow(['Full Distance'] + [accurate_distance] + list(np.zeros(6)))
