@@ -127,7 +127,11 @@ System will be equiped with machine learning model that will state if docking is
 
 
 <p align="center">
-  <img src="images/from_logs/test.png" width="1000" />
+  <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="1000" />
+</p>
+
+<p align="center">
+  <img src="images/from_logs/ride_0_base_speed_2.5_without_rosbag.png" width="1000" />
 </p>
 
 ## Summary
