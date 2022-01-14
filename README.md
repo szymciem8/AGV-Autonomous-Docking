@@ -127,7 +127,7 @@ System will be equiped with machine learning model that will state if docking is
 
 
 <p align="center">
-  <img src="images/from_logs/new.png" width="500" />
+  <img src="images/from_logs/new.png" width="1000" />
 </p>
 
 ## Summary
