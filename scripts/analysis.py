@@ -26,7 +26,7 @@ def get_distance_from_wall(l1, l2, angle):
         return d + np.cos(angle) * X0 - np.sin(angle) * Y0
 
 # path = os.path.join(os.path.dirname(__file__), 'logs/500/ride_0_base_speed_2.8_without_rosbag.csv')
-file = 'test'
+file = 'ride_9_base_speed_2.5_without_rosbag'
 path = os.path.join(os.path.dirname(__file__), 'logs/500/' + file + '.csv')
 df = pd.read_csv(path)
 
@@ -40,7 +40,7 @@ df = df.apply(pd.to_numeric)
 
 df['distance[mm]'] = get_distance_from_wall(df['front[mm]'], df['rear[mm]'], df['angle[rad]'])
 df['time[s]'] = df['time[s]'] - start_time
-df = df[df['distance[mm]'] > 399.0]
+df = df[df['distance[mm]'] > 240.0]
 
 df['angle[rad]'] = get_angle(df['error[mm]'])
 
@@ -54,8 +54,8 @@ min_distance = (df['PID Distance setpoint'] + 50).values.tolist()
 max_distance = (df['PID Distance setpoint'] - 50).values.tolist()
 
 fig, axs = plt.subplots(2)
-axs[0].yaxis.set_ticks(np.arange(400, 600, 20))
-axs[0].xaxis.set_ticks(np.arange(0, 16, 1))
+axs[0].yaxis.set_ticks(np.arange(100, 1100, 20))
+axs[0].xaxis.set_ticks(np.arange(0, 20, 1))
 axs[0].set_xlabel('Time[s]')
 axs[0].set_ylabel('Distance from wall [mm]')
 axs[0].fill_between(time, min_distance, max_distance, facecolor='green', alpha=0.2)
@@ -68,8 +68,8 @@ angle_from_error = get_angle(10)
 min_angle = list([angle_from_error] * len(time))
 max_angle = [-angle_from_error] * len(time)
 
-axs[1].yaxis.set_ticks(np.arange(-0.35, 0.35, 0.05))
-axs[1].xaxis.set_ticks(np.arange(0, 16, 1))
+axs[1].yaxis.set_ticks(np.arange(-0.6, 0.6, 0.05))
+axs[1].xaxis.set_ticks(np.arange(0, 20, 1))
 axs[1].set_xlabel('Time[s]')
 axs[1].set_ylabel('Robot angle against the wall [rad]')
 axs[1].fill_between(time, min_angle, max_angle, facecolor='green', alpha=0.2)
