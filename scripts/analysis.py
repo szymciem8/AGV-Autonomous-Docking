@@ -79,7 +79,7 @@ axs[1].grid()
 axs[1].legend(['Actual angle', 'Angle setpoint', 'Acceptable angle'])
 
 fig.set_size_inches(15,9)
-
+plt.tight_layout()
 plt.savefig('images/from_logs/'+ file +'.png', dpi=200)
 plt.show()
 
