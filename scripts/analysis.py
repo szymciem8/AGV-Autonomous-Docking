@@ -25,24 +25,32 @@ def get_distance_from_wall(l1, l2, angle):
         d = l1 * np.cos(angle)
         return d + np.cos(angle) * X0 - np.sin(angle) * Y0
 
+def clear_data(df):
+        start_time = df.iloc[0,7]
+        df = df[df['distance[mm]'] > 150.0]
+        df['time[s]'] = df['time[s]'] - start_time
+        df = df.apply(pd.to_numeric)
+
+        return df
+
 # path = os.path.join(os.path.dirname(__file__), 'logs/500/ride_0_base_speed_2.8_without_rosbag.csv')
-file = 'ride_9_base_speed_2.5_without_rosbag'
-path = os.path.join(os.path.dirname(__file__), 'logs/500/' + file + '.csv')
+file = 'ride_14'
+path = os.path.join(os.path.dirname(__file__), 'logs/measurements/' + file + '.csv')
 df = pd.read_csv(path)
 
+df = clear_data(df)
+
 start_time = df.iloc[0,7]
-docking_time = df.iloc[-2,1]
-accurate_distance = df.iloc[-1,1]
+docking_time = df.iloc[-3,1]
+accurate_distance = df.iloc[-2,1]
+base_speed = df.iloc[-1,1]
+
 
 # Delete two last rows
-df = df.iloc[:-2]
-df = df.apply(pd.to_numeric)
+# df = df.iloc[:-1]
 
-df['distance[mm]'] = get_distance_from_wall(df['front[mm]'], df['rear[mm]'], df['angle[rad]'])
-df['time[s]'] = df['time[s]'] - start_time
-df = df[df['distance[mm]'] > 240.0]
-
-df['angle[rad]'] = get_angle(df['error[mm]'])
+# df['distance[mm]'] = get_distance_from_wall(df['front[mm]'], df['rear[mm]'], df['angle[rad]'])
+# df['angle[rad]'] = get_angle(df['error[mm]'])
 
 time = df['time[s]'].values.tolist()
 distance = df['distance[mm]'].values.tolist()
@@ -86,10 +94,10 @@ plt.show()
 # path = os.path.join(os.path.dirname(__file__), 'images/from_logs/' + file + '.png')
 
 
-path = os.path.join(os.path.dirname(__file__), 'logs/new_500/' + file + '.csv')
-df.to_csv(path, index=False)
+# path = os.path.join(os.path.dirname(__file__), 'logs/new_500/' + file + '.csv')
+# df.to_csv(path, index=False)
 
-with open(path, 'a') as f:
-    writer = csv.writer(f)
-    writer.writerow(['Full Time'] + [docking_time] + list(np.zeros(6)))
-    writer.writerow(['Full Distance'] + [accurate_distance] + list(np.zeros(6)))
+# with open(path, 'a') as f:
+#     writer = csv.writer(f)
+#     writer.writerow(['Full Time'] + [docking_time] + list(np.zeros(6)))
+#     writer.writerow(['Full Distance'] + [accurate_distance] + list(np.zeros(6)))

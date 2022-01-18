@@ -1,0 +1,5 @@
+front[mm],rear[mm],PID Align setpoint,PID Distance setpoint,error[mm],angle[rad],distance[mm],time[s],rw_speed[rad/s],lw_speeed[rad/s]
+345.0,344.0,0,500,-1.0,-0.005128160174234396,495.4396392323215,1642518817.4455214,0.0,0.0
+Full Time,0.000598907470703125
+Full Distance,0
+Base Speed,2.5

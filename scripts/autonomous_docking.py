@@ -74,7 +74,7 @@ class AGV:
         # It controls distance of robot from the wall. 
         # Setpoint [mm], output[rad]
 
-        self.pid_distance = PID(0.002, 0, 0)
+        self.pid_distance = PID(0.001, 0, 0)
         self.pid_distance.sample_time = 0.001
         self.pid_distance.output_limits = (-0.3, 0.3)
 
@@ -322,12 +322,14 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
 
-    n = '9'
+    n = '49'
     base_speed = 2.5
     rbag = 'without_rosbag'
     set_distance = 500
 
-    robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
+    # robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
+
+    robot = AGV('measurements/ride_'+n)
 
     signal.signal(signal.SIGINT, signal_handler)
     # robot.controller_manager_setup()
@@ -338,24 +340,42 @@ if __name__ == '__main__':
     listener_thread.start()
 
     robot.full_stop()
-    robot.save_to_csv(['front[mm]', 'rear[mm]', 'PID Align setpoint', 'PID Distance setpoint', 'error[mm]', 'angle[rad]', 'distance[mm]', 'time[s]'])
+    robot.save_to_csv(['front[mm]', 
+                       'rear[mm]', 
+                       'PID Align setpoint', 
+                       'PID Distance setpoint', 
+                       'error[mm]', 
+                       'angle[rad]', 
+                       'distance[mm]', 
+                       'time[s]', 
+                       'rw_speed[rad/s]', 
+                       'lw_speeed[rad/s]'])
 
     topics = rospy.get_published_topics()
 
-    time.sleep(1)
+    time.sleep(2)
 
+    i=0
     start = time.time()
     while True:
+        i+=1
+
         robot.docking(base_speed, 500)
-        robot.save_to_csv([robot.precise_pololu[2], 
-                           robot.precise_pololu[3], 
-                           robot.pid_align.setpoint, 
-                           robot.pid_distance.setpoint, 
-                           robot.error, 
-                           robot.angle, 
-                           robot.distance, 
-                           time.time()])
-        
+
+        if i > 2:
+            robot.save_to_csv([robot.precise_pololu[2], 
+                            robot.precise_pololu[3], 
+                            robot.pid_align.setpoint, 
+                            robot.pid_distance.setpoint, 
+                            robot.error, 
+                            robot.angle, 
+                            robot.distance, 
+                            time.time(), 
+                            robot.right_wheel_speed,
+                            robot.left_wheel_speed])
+            
+        if i < 3:
+            robot.global_stop_flag=False
 
         if robot.global_stop_flag:
             break
@@ -368,6 +388,7 @@ if __name__ == '__main__':
     full_distance = input('Full distance: ')
 
     robot.save_to_csv(['Full Distance', full_distance])
+    robot.save_to_csv(['Base Speed', base_speed])
     listener_thread.join()
 
     # bag.close() 
