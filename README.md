@@ -138,7 +138,7 @@ background-color: red;
 
 }
 
-<\style>
+</style>
 <p align="center">
   <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="1000" />
 </p>
