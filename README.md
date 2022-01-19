@@ -29,7 +29,7 @@ All those parts are based on using PID controlers for different actions.
 
 ### Wheel Control
 
-Each wheel has to be controlled individually using PID regulator. PID helps to generate adequate PWM signal that achieves choosen RPM in given conditions.   
+Each wheel has to be controlled individually. PID helps to generate adequate PWM signal that achieves choosen RPM in given conditions.   
 
 Input - RPM
 Output - PWM
@@ -41,7 +41,7 @@ Output - PWM
 
 ### Alignemnt
 
-Next part of the algorithm is to align robot against the wall. To do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels that allows robot to rotate. 
+Next part of the algorithm is to align robot against the wall. To do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels which allows robot to rotate. 
 
 Input - Angle
 Output - RPM
@@ -67,7 +67,7 @@ Black squares on the AGV platform are distance sensor, either Lidar or ToF.
   <img src="images/align_2.png" width="500" />
 </p>
 
-The advatage of this algorithm is that the robot can be aligned in any angle, something between -0.3 and 0.3 radians. 
+The advatage of this algorithm is that the robot can be aligned in any angle, between -0.3 and 0.3 radians. 
 
 #### Angle calculation
 
@@ -89,7 +89,7 @@ error = L1 - L2
 
 As stated before, because robot can achive any angle alignemnt, it can be steered away or to the wall. This way, AGV can achieve any distance from the wall. 
 
-To achive that, another PID regulator was used. This time it calculates the angle that the robot is supposed to achieve based on the difference between current distance and selected distance. 
+PID responsible distance control, calculates the angle that the robot is supposed to achieve based on the difference between current distance and selected distance. 
 
 Input - Difference between distances
 Output - Angle
@@ -124,6 +124,8 @@ Calculates distance of a point of the robot, which is placed in the center of th
 ## Machine Learning -- IN PROGRESS!
 
 System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
+
+The idea is that the model will estimate distance required for docking, based on initial distance from wall, rotation and distance setpoint.  
 
 <p align="center">
   <img src="images/seaborn.png" width="1000" />
