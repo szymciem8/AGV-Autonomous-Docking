@@ -51,7 +51,7 @@ Output - RPM
 |  Wheel RPM |  3 | 0.5  | 0.008  |
 
 <p align="center">
-  <img src="images/aligned.png" width="500" />
+  <img src="images/aligned.png" width="500" alt="example"/>
 </p>
 
 
