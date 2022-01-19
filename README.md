@@ -126,7 +126,7 @@ Calculates distance of a point of the robot, which is placed in the center of th
 System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
 
 <p align="center">
-  <img src="images/from_logs/output.png width="1000" />
+  <img src="images/from_logs/output.png" width="1000" />
 </p>
 
 
