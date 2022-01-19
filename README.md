@@ -133,11 +133,11 @@ The idea is that the model will estimate distance required for docking, based on
 
 
 <p align="center">
-  <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="500" />
+  <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="1000" />
 </p>
 
 <p align="center">
-  <img src="images/from_logs/ride_6_base_speed_2.5_without_rosbag.png" width="500" />
+  <img src="images/from_logs/ride_6_base_speed_2.5_without_rosbag.png" width="1000" />
 </p>
 
 ## Summary
