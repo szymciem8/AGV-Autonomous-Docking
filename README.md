@@ -126,19 +126,11 @@ Calculates distance of a point of the robot, which is placed in the center of th
 System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
 
 <style>
-div{
-
-border: 5px solid blue;
-
-width: 300px;
-
-height: 300px;
-
-background-color: red;
-
+mark{
+    color:red;
 }
-
 </style>
+
 <p align="center">
   <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="1000" />
 </p>
