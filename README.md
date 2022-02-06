@@ -140,11 +140,13 @@ Function above calculates distance of a point of the robot, which is placed in t
 
 ## Machine Learning -- IN PROGRESS!
 
-System will be equiped with machine learning model that will calculate what is the required distance that robot will have to drive in order to dock. 
+System is be equiped with machine learning model that calculates the required distance that robot will have to drive in order to dock. 
 
 The idea is that the model will estimate distance required for docking, based on initial distance from wall, rotation and distance setpoint.  
 
-[a link](https://github.com/szymciem8/AGV-Autonomous-Docking/blob/main/docking_prediction/regression.ipynb)
+Regression model was crated with Deep Neural Network with Tensorflow Keras. The whole program is available below.
+
+[ML model in Jupter Notebook](https://github.com/szymciem8/AGV-Autonomous-Docking/blob/main/docking_prediction/regression.ipynb)
 
 <p align="center">
   <img src="images/seaborn.png" width="500" />
