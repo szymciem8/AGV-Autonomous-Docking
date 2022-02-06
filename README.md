@@ -182,10 +182,6 @@ Fig.7 - Docking procedure with base speed of 2.5 [rad/s]
 Fig.8 - Histogram of model errors
 </p>
 
-## Summary
-
-To sum up, the algorithm consits of chainged PID controllers that control three properties: wheel speed, alignment (angle) and distance. By controlling those values, ....
-
 ## Techonologies
 
 - Python
