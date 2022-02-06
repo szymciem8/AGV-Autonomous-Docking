@@ -54,6 +54,10 @@ Output - RPM
   <img src="images/aligned.png" width="500" alt="Markdown Monster icon"/>
 </p>
 
+<p align = "center">
+Fig.1 - Aligned robot
+</p>
+
 
 With help of differtial drive, robot can be rotated by spinning wheels in the opposite directions. RPM can be a positive or negative based on the direction in which the robot is suposed to turn. 
 
@@ -63,8 +67,16 @@ Black squares on the AGV platform are distance sensor, either Lidar or ToF.
   <img src="images/align_1.png" width="500" />
 </p>
 
+<p align = "center">
+Fig.2 - Rotation 1
+</p>
+
 <p align="center">
   <img src="images/align_2.png" width="500" />
+</p>
+
+<p align = "center">
+Fig.3 - Rotation 2
 </p>
 
 The advatage of this algorithm is that the robot can be aligned in any angle, between -0.3 and 0.3 radians. 
@@ -104,6 +116,11 @@ Output - Angle
   <img src="images/measure_distance.png" width="500" />
 </p>
 
+<p align = "center">
+Fig.4 - Distance measurement
+</p>
+
+
 ```
  def get_distance_from_wall(self, l1, l2):
      # In mm
@@ -131,13 +148,24 @@ The idea is that the model will estimate distance required for docking, based on
   <img src="images/seaborn.png" width="500" />
 </p>
 
+<p align = "center">
+Fig.5 - Seaborn plot of model parameters
+</p>
 
 <p align="center">
   <img src="images/from_logs/ride_0_base_speed_2.8_without_rosbag.png" width="1000" />
 </p>
 
+<p align = "center">
+Fig.6 - Docking procedure with base speed of 2.8 [rad/s]
+</p>
+
 <p align="center">
   <img src="images/from_logs/ride_6_base_speed_2.5_without_rosbag.png" width="1000" />
+</p>
+
+<p align = "center">
+Fig.7 - Docking procedure with base speed of 2.5 [rad/s]
 </p>
 
 <p align="center">
@@ -145,7 +173,7 @@ The idea is that the model will estimate distance required for docking, based on
 </p>
 
 <p align = "center">
-Fig.1 - 4K Mountains Wallpaper
+Fig.8 - Histogram of model errors
 </p>
 
 ## Summary
