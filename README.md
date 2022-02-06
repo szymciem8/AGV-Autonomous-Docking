@@ -16,7 +16,7 @@ Types of docking stations:
 - Straight wall
 - Walls in a shape of a letter "L"
 
-Docking means positioning the robot with proper alignemnt and distance to the wall or walls. 
+Docking means positioning the robot with a proper alignemnt and distance to the wall or walls. 
  
 ## Solution
 
@@ -29,7 +29,7 @@ All those parts are based on using PID controlers for different actions.
 
 ### Wheel Control
 
-Each wheel has to be controlled individually. PID helps to generate adequate PWM signal that achieves choosen RPM in given conditions.   
+Each wheel has to be controlled individually. PID helps to generate adequate PWM signal that achieves choosen RPM under given conditions.   
 
 Input - RPM
 Output - PWM
@@ -41,7 +41,7 @@ Output - PWM
 
 ### Alignemnt
 
-Next part of the algorithm is to align robot against the wall. To do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels which allows robot to rotate. 
+Next part of the algorithm is to align robot against the wall. In order to do that, another PID controller is used. It takes angle of required alignment as an input and as an output returns speed (RPM) of wheels which allows robot to rotate. 
 
 Input - Angle
 Output - RPM
@@ -136,13 +136,15 @@ Fig.4 - Distance measurement
      return d + math.cos(angle) * X0 - math.sin(angle) * Y0  
 ```
 
-Calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
+Function above calculates distance of a point of the robot, which is placed in the center of the wheels axle. It is the same point around which AGV platform rotates. 
 
 ## Machine Learning -- IN PROGRESS!
 
-System will be equiped with machine learning model that will state if docking is possible based on previous attemps.
+System will be equiped with machine learning model that will calculate what is the required distance that robot will have to drive in order to dock. 
 
 The idea is that the model will estimate distance required for docking, based on initial distance from wall, rotation and distance setpoint.  
+
+[a link](https://github.com/szymciem8/AGV-Autonomous-Docking/blob/main/docking_prediction/regression.ipynb)
 
 <p align="center">
   <img src="images/seaborn.png" width="500" />
