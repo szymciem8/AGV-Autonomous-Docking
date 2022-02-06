@@ -140,6 +140,10 @@ The idea is that the model will estimate distance required for docking, based on
   <img src="images/from_logs/ride_6_base_speed_2.5_without_rosbag.png" width="1000" />
 </p>
 
+<p align="center">
+  <img src="images/histogram.png" width="500" />
+</p>
+
 ## Summary
 
 To sum up, the algorithm consits of chainged PID controllers that control three properties: wheel speed, alignment (angle) and distance. By controlling those values, ....
