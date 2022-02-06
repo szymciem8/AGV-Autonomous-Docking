@@ -144,9 +144,11 @@ System is be equiped with machine learning model that calculates the required di
 
 The idea is that the model will estimate distance required for docking, based on initial distance from wall, rotation and distance setpoint.  
 
-Regression model was crated with Deep Neural Network with Tensorflow Keras. The whole program is available below.
+Regression model was crated with Deep Neural Network with Tensorflow Keras. The whole program is available in the link below.
 
 [ML model in Jupter Notebook](https://github.com/szymciem8/AGV-Autonomous-Docking/blob/main/docking_prediction/regression.ipynb)
+
+<br/>
 
 <p align="center">
   <img src="images/seaborn.png" width="500" />
