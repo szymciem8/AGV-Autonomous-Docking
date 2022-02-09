@@ -19,9 +19,6 @@ import math
 import csv
 import os
 
-import pandas as pd
-from tensorflow import keras
-
 import rosbag
 import signal
 
@@ -96,8 +93,6 @@ class AGV:
 
         self.tfmini_measurements = [0, 0, 0, 0]
         self.pololu_measurements = [0, 0, 0, 0]
-
-        self.nn_model = keras.models.load_model('docking_prediction/docking_distance_prediction/')
 
     def __del__(self):
         self.f.close()
@@ -312,17 +307,6 @@ class AGV:
         else:
             self.writer.writerow([self.error, self.angle, self.distance])
 
-
-    def predict_docking_distance(self):
-        data = {'base_speed':[2.5], 
-        'distance_from_wall':[350], 
-        'rotation_angle':[0.2], 
-        'distance_setpoint':[500.0]}
-
-        current_df = pd.DataFrame(data)
-
-        return self.nn_model.predict(current_df)[0][0]
-
     def find_docking_wall(self):
         '''
         Based on the distance from the front lidar, specify if the robot
@@ -337,8 +321,6 @@ def signal_handler(signal, frame):
 
 
 if __name__ == '__main__':
-
-
 
     n = '49'
     base_speed = 2.5
@@ -370,7 +352,6 @@ if __name__ == '__main__':
                        'lw_speeed[rad/s]'])
 
     topics = rospy.get_published_topics()
-    bag = rosbag.Bag('measurements/ride_'+n, 'w')
 
     time.sleep(2)
 
@@ -392,10 +373,6 @@ if __name__ == '__main__':
                             time.time(), 
                             robot.right_wheel_speed,
                             robot.left_wheel_speed])
-
-        elif i == 3:
-            print('Predicted docking distance: ', robot.predict_docking_distance())
-            input('Press any key to continue...')
             
         if i < 3:
             robot.global_stop_flag=False
