@@ -329,7 +329,7 @@ if __name__ == '__main__':
 
     # robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
 
-    robot = AGV('measurements/ride_'+n)
+    robot = AGV('500_2/ride_'+n)
 
     signal.signal(signal.SIGINT, signal_handler)
     # robot.controller_manager_setup()

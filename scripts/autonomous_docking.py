@@ -2,13 +2,15 @@
 
 # Copyright 2022 Szymon Ciemała, Paweł Wojaczek
 
+from codecs import ignore_errors
 from logging import error
 from numpy.core.numeric import full
-from geometry_msgs import msg
+from geometry_msgs import msg 
+from geometry_msgs.msg import PoseWithCovarianceStamped
 import rospy
 from rospy.exceptions import ROSTimeMovedBackwardsException
 from std_msgs.msg import Float64
-from sensor_msgs.msg import JointState, Imu, Range
+from sensor_msgs.msg import JointState, Imu, Range, LaserScan
 
 from simple_pid import PID
 import threading
@@ -20,7 +22,11 @@ import csv
 import os
 
 import pandas as pd
+
+import tensorflow as tf
+
 from tensorflow import keras
+from tensorflow.keras import layers
 
 import rosbag
 import signal
@@ -52,6 +58,40 @@ class AGV:
 
         rospy.init_node('robot_controller', anonymous=True)
 
+        # Read values from topic
+        self.right_wheel_speed = 0
+        self.left_wheel_speed = 0
+
+        self.error = 0
+        self.distance = 0
+        self.angle = 0
+
+        self.precise_tfmini = None
+        self.precise_pololu = None
+
+        rospy.init_node('robot_controller', anonymous=True)
+
+        self.tfmini_measurements = [0, 0, 0, 0]
+        self.pololu_measurements = [0, 0, 0, 0]
+
+        # Pozyx
+        self.pozyx_x_1 = 0
+        self.pozyx_y_1 = 0
+        self.pozyx_rot_y_1 = 0
+
+        self.pozyx_x_2 = 0
+        self.pozyx_y_2 = 0
+        self.pozyx_rot_y_2 = 0
+
+        # Lidar
+        self.laser_msg = None
+
+        self.nn_model = keras.models.load_model('/home/ubuntu/catkin_ws/src/AGV-Autonomous-Docking/docking_prediction/docking_distance_prediction/')
+
+    def __del__(self):
+        self.f.close()
+
+    def initialize_pid_ctrl(self):
         # RIGHT WHEEL PID
         # Setpoint [rad/s]
         self.pid_right = PID(6, 5, 0.1, setpoint=0)
@@ -81,26 +121,6 @@ class AGV:
         self.pid_distance.sample_time = 0.001
         self.pid_distance.output_limits = (-0.3, 0.3)
 
-        # Read values from topic
-        self.right_wheel_speed = 0
-        self.left_wheel_speed = 0
-
-        self.error = 0
-        self.distance = 0
-        self.angle = 0
-
-        self.precise_tfmini = None
-        self.precise_pololu = None
-
-        rospy.init_node('robot_controller', anonymous=True)
-
-        self.tfmini_measurements = [0, 0, 0, 0]
-        self.pololu_measurements = [0, 0, 0, 0]
-
-        self.nn_model = keras.models.load_model('docking_prediction/docking_distance_prediction/')
-
-    def __del__(self):
-        self.f.close()
 
     def controller_manager_setup(self):
         '''
@@ -137,12 +157,33 @@ class AGV:
         self.right_wheel_speed = msg.velocity[1]
         self.left_wheel_speed = msg.velocity[0]
 
+    def callback_pozyx_1(self, msg):
+
+        self.pozyx_x_1 = msg.pose.pose.position.x
+        self.pozyx_y_1 = msg.pose.pose.position.y
+        self.pozyx_z_1 = msg.pose.pose.position.z
+        self.pozyx_rot_y_1 = msg.pose.pose.orientation.y
+
+
+    def callback_pozyx_2(self, msg):
+
+        self.pozyx_x_2 = msg.pose.pose.position.x
+        self.pozyx_y_2 = msg.pose.pose.position.y
+        self.pozyx_z_2 = msg.pose.pose.position.z
+        self.pozyx_rot_y_2 = msg.pose.pose.orientation.y
+    
+    def callback_laser_scan(self, msg):
+        self.laser_msg = msg
+
     def listener(self):
         '''
         Read data from given topics and send save them to choosen variables
         '''
 
         rospy.Subscriber('/joint_states', JointState, self.callback_joint_state)
+        rospy.Subscriber('/pozyx_pose', PoseWithCovarianceStamped, self.callback_pozyx_1)
+        rospy.Subscriber('/pozyx_pose', PoseWithCovarianceStamped, self.callback_pozyx_2)
+        rospy.Subscriber('/scan', LaserScan, self.callback_laser_scan)
         for i in range(4):
             rospy.Subscriber('/mega_driver/pololu/scan_'+str(i), Range, self.callback_pololu, callback_args=i)
             rospy.Subscriber('/mega_driver/tfmini/scan_'+str(i), Range, self.callback_tfmini, callback_args=i)
@@ -296,11 +337,11 @@ class AGV:
         alignment_movement, alignment_error, alignment_angle = self.align_robot(set_distance, 10, 'pololu', True)
 
         if alignment_angle > self.pid_align.setpoint:
-            self.move_right_wheel(base_speed)
+            self.move_right_wheel(base_speed - abs(alignment_movement))
             self.move_left_wheel(base_speed + abs(alignment_movement))
         elif alignment_angle < self.pid_align.setpoint:
             self.move_right_wheel(base_speed + abs(alignment_movement))
-            self.move_left_wheel(base_speed)
+            self.move_left_wheel(base_speed - abs(alignment_movement))
         else:
             self.move_right_wheel(base_speed)
             self.move_left_wheel(base_speed)
@@ -315,10 +356,11 @@ class AGV:
 
     def predict_docking_distance(self):
         data = {'base_speed':[2.5], 
-        'distance_from_wall':[350], 
-        'rotation_angle':[0.2], 
+        'distance_from_wall':[self.distance], 
+        'rotation_angle':[self.angle], 
         'distance_setpoint':[500.0]}
 
+        print(data)
         current_df = pd.DataFrame(data)
 
         return self.nn_model.predict(current_df)[0][0]
@@ -338,16 +380,17 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
 
-
-
-    n = '49'
+    n = '24'
     base_speed = 2.5
     rbag = 'without_rosbag'
     set_distance = 500
 
     # robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
 
-    robot = AGV('measurements/ride_'+n)
+    name = '500_2/ride_'+n
+    robot = AGV(name)
+
+    bag = rosbag.Bag('scripts/logs/'+name+'.bag', 'w')
 
     signal.signal(signal.SIGINT, signal_handler)
     # robot.controller_manager_setup()
@@ -358,22 +401,28 @@ if __name__ == '__main__':
     listener_thread.start()
 
     robot.full_stop()
-    robot.save_to_csv(['front[mm]', 
-                       'rear[mm]', 
-                       'PID Align setpoint', 
-                       'PID Distance setpoint', 
-                       'error[mm]', 
-                       'angle[rad]', 
-                       'distance[mm]', 
-                       'time[s]', 
-                       'rw_speed[rad/s]', 
-                       'lw_speeed[rad/s]'])
 
-    topics = rospy.get_published_topics()
-    bag = rosbag.Bag('measurements/ride_'+n, 'w')
+    ride_df = pd.DataFrame(columns=['time[s]',
+                                    'front[mm]', 
+                                    'rear[mm]', 
+                                    'PID Align setpoint', 
+                                    'PID Distance setpoint', 
+                                    'error[mm]', 
+                                    'angle[rad]', 
+                                    'distance[mm]', 
+                                    'rw_speed[rad/s]', 
+                                    'lw_speeed[rad/s]', 
+                                    'pozyx_x_1', 
+                                    'pozyx_y_1',
+                                    'pozyx_rot_y_1', 
+                                    'pozyx_x_2',
+                                    'pozyx_y_2',
+                                    'pozyx_rot_2'
+                                    ])
 
     time.sleep(2)
 
+    robot.initialize_pid_ctrl()
     i=0
     start = time.time()
     while True:
@@ -381,21 +430,32 @@ if __name__ == '__main__':
 
         robot.docking(base_speed, 500)
 
-        if i > 2:
-            robot.save_to_csv([robot.precise_pololu[2], 
-                            robot.precise_pololu[3], 
-                            robot.pid_align.setpoint, 
-                            robot.pid_distance.setpoint, 
-                            robot.error, 
-                            robot.angle, 
-                            robot.distance, 
-                            time.time(), 
-                            robot.right_wheel_speed,
-                            robot.left_wheel_speed])
+        if i > 3:
+            new_row = {'time[s]':time.time(),
+                        'front[mm]':robot.precise_pololu[2], 
+                        'rear[mm]':robot.precise_pololu[3], 
+                        'PID Align setpoint':robot.pid_align.setpoint, 
+                        'PID Distance setpoint':robot.pid_distance.setpoint, 
+                        'error[mm]':robot.error, 
+                        'angle[rad]':robot.angle, 
+                        'distance[mm]':robot.distance, 
+                        'rw_speed[rad/s]':robot.right_wheel_speed, 
+                        'lw_speeed[rad/s]':robot.left_wheel_speed, 
+                        'pozyx_x_1':robot.pozyx_x_1, 
+                        'pozyx_y_1':robot.pozyx_y_1,
+                        'pozyx_rot_y_1':robot.pozyx_rot_y_1, 
+                        'pozyx_x_2':robot.pozyx_x_2,
+                        'pozyx_y_2':robot.pozyx_y_2,
+                        'pozyx_rot_2':robot.pozyx_rot_y_2
+                        }
 
-        elif i == 3:
+            ride_df = ride_df.append(new_row, ignore_index=True)
+            bag.write('laser_scan', robot.laser_msg)
+
+        if i == 3:
+            robot.full_stop()
             print('Predicted docking distance: ', robot.predict_docking_distance())
-            input('Press any key to continue...')
+            # input('Press any key to continue...')
             
         if i < 3:
             robot.global_stop_flag=False
@@ -407,6 +467,10 @@ if __name__ == '__main__':
 
     robot.full_stop()
 
+    ride_df.to_csv('/home/ubuntu/catkin_ws/src/AGV-Autonomous-Docking/scripts/logs/'+name+'.csv')
+
+    # print(ride_df)
+
     robot.save_to_csv(['Full Time',end-start])
     full_distance = input('Full distance: ')
 
@@ -414,7 +478,7 @@ if __name__ == '__main__':
     robot.save_to_csv(['Base Speed', base_speed])
     listener_thread.join()
 
-    # bag.close() 
+    bag.close() 
 
     del robot
     print('that\'s all folks, end of the story')

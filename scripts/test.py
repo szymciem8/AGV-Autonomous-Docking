@@ -1,50 +1,24 @@
-import math
-import rosbag
-import rospy
+import pandas as pd
+
+import tensorflow as tf
+
+from tensorflow import keras
+from tensorflow.keras import layers
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 
-def get_angle(error):
-    D = 195
+def predict_docking_distance():
+    data = {'base_speed':[2.5], 
+    'distance_from_wall':[350], 
+    'rotation_angle':[0.2], 
+    'distance_setpoint':[500.0]}
 
-    return math.asin(error/math.sqrt(D**2+error**2))
+    current_df = pd.DataFrame(data)
 
-def get_distance(l1, l2):
-    X0 = 150   #X0 = 150
-    Y0 = 87    #Y0 = 85
+    return nn_model.predict(current_df)[0][0]
 
-    angle = get_angle(l2-l1)
-    d = l1 * math.cos(angle)
+nn_model = keras.models.load_model('/home/ubuntu/catkin_ws/src/AGV-Autonomous-Docking/docking_prediction/docking_distance_prediction/')
 
-    d_p = (X0**2 + Y0**2)**(0.5)
-
-    beta = angle + math.atan2(X0, Y0) - math.pi/2
-
-    x = math.sin(beta) * d_p
-
-    distance =  d + x
-
-    return distance 
-
-def get_distance_from_wall(l1, l2):
-    # In mm
-    X0 = 150   #X0 = 150
-    Y0 = 87    #Y0 = 85
-
-    angle = get_angle(l2-l1)
-    d = l1 * math.cos(angle)
-
-    return d + math.cos(angle) * X0 + math.sin(angle) * Y0
-
-
-topics = rospy.get_published_topics()
-tp = []
-for topic in topics:
-    tp.append(topic[0])
-
-
-
-bag = rosbag.Bag('test.bag', 'w')
-for topic, msg, t in bag.read_messages(topics=tp):
-    print(t)
-
-bag.close()
+print(predict_docking_distance())
