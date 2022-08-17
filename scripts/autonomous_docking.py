@@ -9,7 +9,7 @@ from geometry_msgs import msg
 from geometry_msgs.msg import PoseWithCovarianceStamped
 import rospy
 from rospy.exceptions import ROSTimeMovedBackwardsException
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 from sensor_msgs.msg import JointState, Imu, Range, LaserScan
 
 from simple_pid import PID
@@ -53,8 +53,12 @@ class AGV:
 
         self.xavier_setup = 'export ROS_MASTER_URI=http://192.168.1.101:11311 && export ROS_IP=192.168.1.109'
 
-        self.right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
-        self.left_wheel_publisher = rospy.Publisher('left_velocity/command', Float64, queue_size=10)
+        # self.right_wheel_publisher = rospy.Publisher('right_velocity/command', Float64, queue_size=10)
+        # self.left_wheel_publisher = rospy.Publisher('left_velocity/command', Float64, queue_size=10)
+        
+        self.control_mode = rospy.Publisher('change_topic', String)
+        self.right_wheel_publisher = rospy.Publisher('control_right', Float64, queue_size=10)
+        self.left_wheel_publisher = rospy.Publisher('control_left', Float64, queue_size=10)
 
         rospy.init_node('robot_controller', anonymous=True)
 
