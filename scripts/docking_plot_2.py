@@ -15,8 +15,8 @@ def get_angle(error):
         return np.arcsin(error/np.sqrt(D**2+error**2))
 
 # path = os.path.join(os.path.dirname(__file__), 'logs/500/ride_0_base_speed_2.8_without_rosbag.csv')
-file = 'ride_24'
-path = os.path.join(os.path.dirname(__file__), 'logs/500_2/' + file + '.csv')
+file = 'ride0'
+path = os.path.join(os.path.dirname(__file__), 'logs/portenta/' + file + '.csv')
 df_procedure = pd.read_csv(path, skiprows=[0,1,2, 3], names=['time[s]',
                                                           'front[mm]', 
                                                           'rear[mm]', 
@@ -83,8 +83,8 @@ axs[1].legend(['Actual angle', 'Angle setpoint', 'Acceptable angle'])
 
 fig.set_size_inches(15,9)
 plt.tight_layout()      
-plt.savefig('images/from_logs/'+ file +'.png', dpi=200)
-plt.show()
+plt.savefig('images/from_logs/portenta/'+ file +'.png', dpi=200)
+# plt.show()
 
 # path = os.path.join(os.path.dirname(__file__), 'images/from_logs/' + file + '.png')
 
