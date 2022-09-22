@@ -106,7 +106,7 @@ class AGV:
 
         # LEFT WHEEL PID
         # self.pid_left = PID(5, 5, 0.1, setpoint=0)
-        self.pid_left = PID(7, 14, 0.1, setpoint=0)
+        self.pid_left = PID(10, 14, 0.1, setpoint=0)
         self.pid_left.sample_time = 0.001
         self.pid_left.output_limits = (-1000, 1000)
 
@@ -192,7 +192,7 @@ class AGV:
 
         if output > 0: output += RIGHT_OFFSET
         elif output < 0: output -= RIGHT_OFFSET
-        self.right_wheel_publisher.publish(-output)
+        self.right_wheel_publisher.publish(output)
 
     def move_left_wheel(self, speed):
         '''
@@ -218,7 +218,7 @@ class AGV:
         if output > 0: output += LEFT_OFFSET
         elif output < 0: output -= LEFT_OFFSET
 
-        self.left_wheel_publisher.publish(-output)
+        self.left_wheel_publisher.publish(output)
 
     def docking(self, base_speed=3, set_distance=500):
         '''

@@ -23,10 +23,10 @@ import os
 
 import pandas as pd
 
-import tensorflow as tf
+# import tensorflow as tf
 
 from tensorflow import keras
-from tensorflow.keras import layers
+# from tensorflow.keras import layers
 
 import rosbag
 import signal
@@ -114,16 +114,17 @@ class AGV:
         # Setpoint [rad], output[rad]
 
         # pid_align = PID(2.5, 0.4, 0.008)
-        self.pid_align = PID(3, 0.5, 0.008)
+        self.pid_align = PID(1, 0.4, 0.008)
+        # self.pid_align = PID(0.2, 0.2, 0.008)
         self.pid_align.sample_time = 0.001
-        self.pid_align.setpoint = -0.6
+        self.pid_align.setpoint = 0
         self.pid_align.output_limits = (-20, 20)
 
         # DISTANCE PID
         # It controls distance of robot from the wall. 
         # Setpoint [mm], output[rad]
 
-        self.pid_distance = PID(0.01, 0, 0)
+        self.pid_distance = PID(0.001, 0, 0)
         self.pid_distance.sample_time = 0.001
         self.pid_distance.output_limits = (-0.3, 0.3)
 
@@ -131,6 +132,7 @@ class AGV:
         '''
         Read pololu data from ROS topic
         '''
+        # self.pololu_measurements[i] = msg.range
         self.pololu_measurements[i] = msg.data
         # print(self.pololu_measurements)
 
@@ -183,6 +185,7 @@ class AGV:
         rospy.Subscriber('/pozyx_pose', PoseWithCovarianceStamped, self.callback_pozyx_2)
         rospy.Subscriber('/scan', LaserScan, self.callback_laser_scan)
         for i in range(8):
+            # rospy.Subscriber('/Pololu'+str(i), Range, self.callback_pololu, callback_args=i)
             rospy.Subscriber('/Pololu'+str(i), Float64, self.callback_pololu, callback_args=i)
             # rospy.Subscriber('/AGV_driver/tfmini/scan_'+str(i), Range, self.callback_tfmini, callback_args=i)
 
@@ -193,12 +196,12 @@ class AGV:
         Move right wheel using PID controller.
         '''
         # RIGHT_OFFSET = 450
-        RIGHT_OFFSET = 0
+        # RIGHT_OFFSET = 0
 
-        global pid_right, right_wheel_speed
+        # global pid_right, right_wheel_speed
 
-        if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
-        elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
+        # if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
+        # elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
 
         self.pid_right.setpoint=speed
         output = self.pid_right(self.right_wheel_speed)
@@ -208,9 +211,9 @@ class AGV:
         elif speed < 0 and output > 0:
             output=0
 
-        if output > 0: output += RIGHT_OFFSET
-        elif output < 0: output -= RIGHT_OFFSET
-        self.right_wheel_publisher.publish(-output)
+        # if output > 0: output += RIGHT_OFFSET
+        # elif output < 0: output -= RIGHT_OFFSET
+        self.right_wheel_publisher.publish(output)
 
     def move_left_wheel(self, speed):
         '''
@@ -218,12 +221,12 @@ class AGV:
         '''
 
         # LEFT_OFFSET = 480
-        LEFT_OFFSET = 0
+        # LEFT_OFFSET = 0
 
         # global pid_left, left_wheel_speed
 
-        if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
-        elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
+        # if speed < self.MIN_SPEED and speed > 0: speed=self.MIN_SPEED
+        # elif speed > -self.MIN_SPEED and speed < 0: speed=-self.MIN_SPEED
 
         self.pid_left.setpoint=speed
         output = self.pid_left(self.left_wheel_speed)
@@ -233,10 +236,10 @@ class AGV:
         elif speed < 0 and output > 0:
             output=0
 
-        if output > 0: output += LEFT_OFFSET
-        elif output < 0: output -= LEFT_OFFSET
+        # if output > 0: output += LEFT_OFFSET
+        # elif output < 0: output -= LEFT_OFFSET
 
-        self.left_wheel_publisher.publish(-output)
+        self.left_wheel_publisher.publish(output)
 
     def full_stop(self):
         '''
@@ -250,7 +253,8 @@ class AGV:
         '''
         Calculate angle of a robot against the wall
         '''
-        D = 195
+        # D = 195
+        D = 360
         return math.asin(error/math.sqrt(D**2+error**2))
 
     def get_distance_from_wall(self):
@@ -260,15 +264,17 @@ class AGV:
         l2 - rear
         '''
         # In mm
-        X0 = 150
-        Y0 = 87
+        # X0 = 150
+        X0=175
+        Y0 =120
 
         l1 = self.front_left_dis
         l2 = self.rear_left_dis
 
         # d/l1 = cos(alfa) -> d = li
 
-        angle = self.get_angle(l2-l1-45)
+        # angle = self.get_angle(l2-l1-45)
+        angle = self.get_angle(-self.side_diff())
 
         d = l1 * math.cos(angle)
 
@@ -288,12 +294,13 @@ class AGV:
         '''
         Calculate the difference between measurements from front and rear sensors.
         '''
-        self.front_left_dis = (self.pololu_measurements[6] + self.pololu_measurements[1]) / 2
-        self.rear_left_dis = (self.pololu_measurements[5] + self.pololu_measurements[2]) / 2
+        self.front_left_dis = (self.pololu_measurements[6] + self.pololu_measurements[1]) / 2 
+        self.rear_left_dis = (self.pololu_measurements[5] + self.pololu_measurements[2]) / 2 - offset
 
         # print(f"{self.front_left_dis=}, {self.rear_left_dis=}")
 
-        return self.front_left_dis - self.rear_left_dis + offset
+        # return self.front_left_dis - self.rear_left_dis
+        return self.rear_left_dis - self.front_left_dis
 
     def align_robot(self, set_distance, distance_error, sensor='pololu', precision=False):
         '''
@@ -320,17 +327,20 @@ class AGV:
         self.pid_distance.setpoint = set_distance
 
         # Set alignment based on distance from the wall
-        if set_distance * (1 - distance_error/100) < self.distance < set_distance * (1 + distance_error/100):
-            self.pid_align.setpoint = 0
+        self.pid_align.setpoint = 0
 
-            if -10 < self.error < 10:
-                self.global_stop_flag = True
-        else:
-            self.pid_align.setpoint = self.pid_distance(self.distance)
+        # if set_distance - 50 < self.distance < set_distance + 50:
+        #     self.pid_align.setpoint = 0
+
+        #     if -15 < self.error < 15:
+        #         self.global_stop_flag = True
+        # else:
+        #     self.pid_align.setpoint = self.pid_distance(self.distance)
 
         # self.pid_align.setpoint = 0
 
         output_align = self.pid_align(self.angle)
+        print(f'{output_align=}')
 
         # if output_align < 0: output_align -=5
         # elif output_align >0: output_align += 5
@@ -347,20 +357,24 @@ class AGV:
         '''
 
         alignment_movement, alignment_error, alignment_angle = self.align_robot(set_distance, 10, 'pololu', False)
+        # print(alignment_movement)
+
+        self.move_right_wheel(base_speed - alignment_movement)
+        self.move_left_wheel(base_speed + alignment_movement)
 
         # print(f"{alignment_movement=}")
-        if alignment_angle > self.pid_align.setpoint:
-            print("Turn right")
-            self.move_right_wheel(base_speed + abs(alignment_movement))
-            self.move_left_wheel(base_speed - abs(alignment_movement))
-        elif alignment_angle < self.pid_align.setpoint:
-            print("Turn left")
-            self.move_right_wheel(base_speed - abs(alignment_movement))
-            self.move_left_wheel(base_speed + abs(alignment_movement))
-        else:
-            print("Move forward")
-            self.move_right_wheel(base_speed)
-            self.move_left_wheel(base_speed)
+        # if alignment_angle > self.pid_align.setpoint:
+        #     # print("Turn left")
+        #     self.move_right_wheel(base_speed + abs(alignment_movement))
+        #     self.move_left_wheel(base_speed - abs(alignment_movement))
+        # elif alignment_angle < self.pid_align.setpoint:
+        #     # print("Turn right")
+        #     self.move_right_wheel(base_speed - abs(alignment_movement))
+        #     self.move_left_wheel(base_speed + abs(alignment_movement))
+        # else:
+        #     # print("Move forward")
+        #     self.move_right_wheel(base_speed)
+        #     self.move_left_wheel(base_speed)
 
     def save_to_csv(self, data):
 
@@ -396,15 +410,14 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
 
-    n = '24'
-    base_speed = 0.5
-    rbag = 'without_rosbag'
+    n = '1'
+    base_speed = 1.5
+    # rbag = 'without_rosbag'
     set_distance = 500
-
 
     # robot = AGV(str(set_distance)+ '/' + 'ride_' + n + '_base_speed_' + str(base_speed) + '_' + rbag)
 
-    name = '500_2/ride_'+n
+    name = 'portenta_2/ride_'+n
     robot = AGV(name)
 
     # bag = rosbag.Bag('scripts/logs/'+name+'.bag', 'w')
@@ -448,38 +461,44 @@ if __name__ == '__main__':
         i+=1
 
         robot.docking(base_speed, 500)
-        print(robot.distance)
+
+        print(robot.error)
+        # print(robot.distance)
 
         # print(robot.precise_pololu[2], robot.precise_pololu[3])
-        # print(robot.side_diff())
-        # print(f"{robot.right_wheel_speed=}, {robot.left_wheel_speed=}, {robot.front_left_dis=}, {robot.rear_left_dis=}")
+        # pri nt(robot.side_diff())
+        # print(f"{robot.right_wheel_speed=}, {robot.left_wheel_speed=}, {robot.front_left_dis=}, {robot.rear_left_dis=}"))
 
-        # if i > 3:
-        #     new_row = {'time[s]':time.time(),
-        #                 'front[mm]':robot.precise_pololu[2], 
-        #                 'rear[mm]':robot.precise_pololu[3], 
-        #                 'PID Align setpoint':robot.pid_align.setpoint, 
-        #                 'PID Distance setpoint':robot.pid_distance.setpoint, 
-        #                 'error[mm]':robot.error, 
-        #                 'angle[rad]':robot.angle, 
-        #                 'distance[mm]':robot.distance, 
-        #                 'rw_speed[rad/s]':robot.right_wheel_speed, 
-        #                 'lw_speeed[rad/s]':robot.left_wheel_speed, 
-        #                 'pozyx_x_1':robot.pozyx_x_1, 
-        #                 'pozyx_y_1':robot.pozyx_y_1,
-        #                 'pozyx_rot_y_1':robot.pozyx_rot_y_1, 
-        #                 'pozyx_x_2':robot.pozyx_x_2,
-        #                 'pozyx_y_2':robot.pozyx_y_2,
-        #                 'pozyx_rot_2':robot.pozyx_rot_y_2
-        #                 }
 
-        #     ride_df = ride_df.append(new_row, ignore_index=True)
+        # print(f'{robot.distance=}')
+        # print(robot.pololu_measurements)
+
+        if i > 3:
+            new_row = {'time[s]':time.time(),
+                        'front[mm]':robot.front_left_dis, 
+                        'rear[mm]':robot.rear_left_dis, 
+                        'PID Align setpoint':robot.pid_align.setpoint, 
+                        'PID Distance setpoint':robot.pid_distance.setpoint, 
+                        'error[mm]':robot.error, 
+                        'angle[rad]':robot.angle, 
+                        'distance[mm]':robot.distance, 
+                        'rw_speed[rad/s]':robot.right_wheel_speed, 
+                        'lw_speeed[rad/s]':robot.left_wheel_speed, 
+                        'pozyx_x_1':robot.pozyx_x_1, 
+                        'pozyx_y_1':robot.pozyx_y_1,
+                        'pozyx_rot_y_1':robot.pozyx_rot_y_1, 
+                        'pozyx_x_2':robot.pozyx_x_2,
+                        'pozyx_y_2':robot.pozyx_y_2,
+                        'pozyx_rot_2':robot.pozyx_rot_y_2
+                        }
+
+            ride_df = ride_df.append(new_row, ignore_index=True)
             # bag.write('laser_scan', robot.laser_msg)
 
-        if i == 3:
-            robot.full_stop()
-            print('Predicted docking distance: ', robot.predict_docking_distance())
-            # input('Press any key to continue...')
+        # if i == 3:
+        #     robot.full_stop()
+        #     print('Predicted docking distance: ', robot.predict_docking_distance())
+        #     # input('Press any key to continue...')
             
         if i < 3:
             robot.global_stop_flag=False
@@ -491,15 +510,37 @@ if __name__ == '__main__':
 
     robot.full_stop()
 
-    ride_df.to_csv('/home/ubuntu/catkin_ws/src/AGV-Autonomous-Docking/scripts/logs/'+name+'.csv')
 
-    # print(ride_df)
-
-    robot.save_to_csv(['Full Time',end-start])
     full_distance = input('Full distance: ')
 
-    robot.save_to_csv(['Full Distance', full_distance])
-    robot.save_to_csv(['Base Speed', base_speed])
+    new_row = {'time[s]':end-start,
+                'front[mm]':full_distance, 
+                'rear[mm]':base_speed, 
+                'PID Align setpoint':0,
+                'PID Distance setpoint':0, 
+                'error[mm]':0, 
+                'angle[rad]':0,
+                'distance[mm]':0,
+                'rw_speed[rad/s]':0,
+                'lw_speeed[rad/s]':0,
+                'pozyx_x_1':0,
+                'pozyx_y_1':0,
+                'pozyx_rot_y_1':0,
+                'pozyx_x_2':0,
+                'pozyx_y_2':0,
+                'pozyx_rot_2':0,
+                }
+
+    ride_df = ride_df.append(new_row, ignore_index=True)
+
+    ride_df.to_csv('/home/ubuntu/catkin_ws/src/AGV-Autonomous-Docking/scripts/logs/'+name+'.csv')
+
+
+    # robot.save_to_csv(['Full Time',end-start])
+    # full_distance = input('Full distance: ')
+
+    # robot.save_to_csv(['Full Distance', full_distance])
+    # robot.save_to_csv(['Base Speed', base_speed])
     listener_thread.join()
 
     # bag.close() 
